@@ -11,6 +11,7 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /** Acesso à tabela {@code servico} (CT15). */
 public class ServicoRepositorio {
@@ -53,16 +54,31 @@ public class ServicoRepositorio {
             try (ResultSet rs = ps.executeQuery()) {
                 List<Servico> servicos = new ArrayList<>();
                 while (rs.next()) {
-                    servicos.add(new Servico(
-                            rs.getInt("id"),
-                            rs.getInt("profissional_id"),
-                            rs.getString("nome"),
-                            rs.getInt("duracao_minutos"),
-                            rs.getBigDecimal("preco"),
-                            rs.getObject("criado_em", LocalDateTime.class)));
+                    servicos.add(ler(rs));
                 }
                 return servicos;
             }
         }
+    }
+
+    /** Busca um serviço usando a conexão (e a transação) de quem chama. */
+    public Optional<Servico> buscarPorId(Connection c, int id) throws SQLException {
+        String sql = "SELECT id, profissional_id, nome, duracao_minutos, preco, criado_em FROM servico WHERE id = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(ler(rs)) : Optional.empty();
+            }
+        }
+    }
+
+    private static Servico ler(ResultSet rs) throws SQLException {
+        return new Servico(
+                rs.getInt("id"),
+                rs.getInt("profissional_id"),
+                rs.getString("nome"),
+                rs.getInt("duracao_minutos"),
+                rs.getBigDecimal("preco"),
+                rs.getObject("criado_em", LocalDateTime.class));
     }
 }

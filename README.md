@@ -10,6 +10,7 @@ JWT (HS256, com `exp`) e bcrypt. Os contratos estão em [`docs/contratos/`](docs
 |---|---|---|
 | H02.1 | CT1 abrirSessao, CT14 profissional | `POST /sessoes` |
 | H02.2 | CT2 cadastrarServico, CT3 listarServicos, CT15 servico | `POST /servicos`, `GET /profissionais/{slug}/servicos` |
+| H04.1 | CT7 criarAgendamento, CT16 horario_atendimento, CT17 cliente, CT18 agendamento | `POST /agendamentos` |
 
 Todo erro volta como `{ "erro": CODIGO, "mensagem": texto }`. O CORS libera as origens de `CORS_ORIGENS`
 (padrão `http://localhost:5175`) com os cabeçalhos `Authorization` e `Content-Type`.
@@ -23,7 +24,8 @@ docker compose down -v              # derruba tudo e apaga o banco
 ```
 
 Na primeira subida o MySQL carrega `db/schema.sql` e `db/dados-dev.sql`, que cria a profissional de exemplo
-**ana@exemplo.com / segredo123** (slug `ana-unhas`). Depois de mudar esses arquivos, use `docker compose down -v`
+**ana@exemplo.com / segredo123** (slug `ana-unhas`), que atende de segunda a sexta das 09:00 às 18:00 e
+no sábado das 09:00 às 13:00. Depois de mudar esses arquivos, use `docker compose down -v`
 para o banco ser recriado.
 
 Ainda não há cadastro de profissional pela API. Para criar um direto no banco, gere o `senha_hash`:
@@ -41,6 +43,8 @@ $s = Invoke-RestMethod -Method Post http://localhost:8080/sessoes -ContentType '
 Invoke-RestMethod -Method Post http://localhost:8080/servicos -ContentType 'application/json' -Headers @{ Authorization = "Bearer $($s.token)" } -Body '{"servicoNome":"Pedicure","duracaoMinutos":40,"preco":30.50}'
 # CT3 - listar serviços
 Invoke-RestMethod http://localhost:8080/profissionais/ana-unhas/servicos | ConvertTo-Json -Depth 5
+# CT7 - criar agendamento (sem login; clienteNome só é exigido no primeiro agendamento do telefone)
+Invoke-RestMethod -Method Post http://localhost:8080/agendamentos -ContentType 'application/json' -Body '{"servicoId":1,"inicio":"2026-11-03T14:00:00","clienteTelefone":"+5519988887777","clienteNome":"Maria Souza"}'
 # Erros: curl.exe mostra o status e o corpo
 curl.exe -i -X POST http://localhost:8080/servicos -H "Content-Type: application/json" -d '{}'
 ```
