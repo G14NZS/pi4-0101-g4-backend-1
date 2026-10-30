@@ -1,0 +1,61 @@
+# Ambiente de desenvolvimento do Backend 1.
+#   docker compose up -d --build              -> MySQL + API em http://localhost:8080
+#   docker compose run --rm testes            -> roda os testes automáticos (mvn test) contra o MySQL
+# Os segredos abaixo são só para desenvolvimento.
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: reservice
+      MYSQL_USER: reservice
+      MYSQL_PASSWORD: reservice
+      TZ: America/Sao_Paulo
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/dados-dev.sql:/docker-entrypoint-initdb.d/02-dados-dev.sql:ro
+      - dados-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build: .
+    environment:
+      PORTA: "8080"
+      DB_URL: jdbc:mysql://mysql:3306/reservice?allowPublicKeyRetrieval=true
+      DB_USUARIO: reservice
+      DB_SENHA: reservice
+      JWT_SEGREDO: segredo-de-desenvolvimento-troque-em-producao-0123456789
+      JWT_VALIDADE_MINUTOS: "120"
+      CORS_ORIGENS: http://localhost:5173
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  testes:
+    image: maven:3.9.9-eclipse-temurin-21
+    profiles: ["testes"]
+    working_dir: /app
+    command: mvn -B test
+    environment:
+      TESTE_DB_URL: jdbc:mysql://mysql:3306/reservice_teste?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+      TESTE_DB_USUARIO: root
+      TESTE_DB_SENHA: root
+    volumes:
+      - .:/app
+      - cache-maven:/root/.m2
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  dados-mysql:
+  cache-maven:
