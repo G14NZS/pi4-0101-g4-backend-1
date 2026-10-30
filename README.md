@@ -12,7 +12,7 @@ JWT (HS256, com `exp`) e bcrypt. Os contratos estão em [`docs/contratos/`](docs
 | H02.2 | CT2 cadastrarServico, CT3 listarServicos, CT15 servico | `POST /servicos`, `GET /profissionais/{slug}/servicos` |
 
 Todo erro volta como `{ "erro": CODIGO, "mensagem": texto }`. O CORS libera as origens de `CORS_ORIGENS`
-(padrão `http://localhost:5173`) com os cabeçalhos `Authorization` e `Content-Type`.
+(padrão `http://localhost:5175`) com os cabeçalhos `Authorization` e `Content-Type`.
 
 ## Como rodar (só precisa de Docker)
 
@@ -53,5 +53,5 @@ curl.exe -i -X POST http://localhost:8080/servicos -H "Content-Type: application
 | `DB_USUARIO` / `DB_SENHA` | sim / não | | Credenciais do banco |
 | `JWT_SEGREDO` | sim | | Segredo do HS256, com 32 caracteres ou mais |
 | `JWT_VALIDADE_MINUTOS` | não | `120` | Validade do token (campo `exp`) |
-| `CORS_ORIGENS` | não | `http://localhost:5173` | Origens liberadas, separadas por vírgula |
+| `CORS_ORIGENS` | não | `http://localhost:5175` | Origens liberadas, separadas por vírgula |
 | `PORTA` / `THREADS` | não | `8080` / `16` | Porta HTTP e tamanho do pool de threads |

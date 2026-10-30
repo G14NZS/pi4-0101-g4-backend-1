@@ -33,7 +33,7 @@ services:
       DB_SENHA: reservice
       JWT_SEGREDO: segredo-de-desenvolvimento-troque-em-producao-0123456789
       JWT_VALIDADE_MINUTOS: "120"
-      CORS_ORIGENS: http://localhost:5173
+      CORS_ORIGENS: http://localhost:5175
     ports:
       - "8080:8080"
     depends_on:

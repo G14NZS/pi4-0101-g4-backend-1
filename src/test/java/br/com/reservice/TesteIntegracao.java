@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public abstract class TesteIntegracao {
 
     protected static final String SEGREDO = "segredo-de-teste-com-pelo-menos-32-caracteres";
-    protected static final String ORIGEM_FRONTEND = "http://localhost:5173";
+    protected static final String ORIGEM_FRONTEND = "http://localhost:5175";
 
     protected Config config;
     protected Banco banco;

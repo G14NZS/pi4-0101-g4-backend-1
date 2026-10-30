@@ -34,7 +34,7 @@ public record Config(
                 env.getOrDefault("DB_SENHA", ""),
                 segredo,
                 Duration.ofMinutes(Long.parseLong(env.getOrDefault("JWT_VALIDADE_MINUTOS", "120"))),
-                Arrays.stream(env.getOrDefault("CORS_ORIGENS", "http://localhost:5173").split(","))
+                Arrays.stream(env.getOrDefault("CORS_ORIGENS", "http://localhost:5175").split(","))
                         .map(String::trim)
                         .filter(o -> !o.isEmpty())
                         .collect(Collectors.toUnmodifiableSet()));
