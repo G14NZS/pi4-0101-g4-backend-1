@@ -1,5 +1,6 @@
 package br.pucampinas.reservice.controller;
-
+import br.pucampinas.reservice.dto.horario.ListarHorariosLivresResponse;
+import java.time.LocalDate;
 import br.pucampinas.reservice.dto.horario.DefinirHorariosRequest;
 import br.pucampinas.reservice.dto.horario.DefinirHorariosResponse;
 import br.pucampinas.reservice.service.HorarioService;
@@ -29,6 +30,23 @@ public class HorarioController {
                 horarioService.definirHorarios(
                         profissionalId,
                         request
+                );
+
+        return ResponseEntity.ok(response);
+    }
+    @GetMapping("/livres")
+    public ResponseEntity<ListarHorariosLivresResponse> listarHorariosLivres(
+            @RequestParam Long profissionalId,
+            @RequestParam String data,
+            @RequestParam int duracaoMinutos) {
+
+        LocalDate dataConvertida = LocalDate.parse(data);
+
+        ListarHorariosLivresResponse response =
+                horarioService.listarHorariosLivres(
+                        profissionalId,
+                        dataConvertida,
+                        duracaoMinutos
                 );
 
         return ResponseEntity.ok(response);

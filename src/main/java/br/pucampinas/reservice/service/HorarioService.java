@@ -5,7 +5,13 @@ import br.pucampinas.reservice.dto.horario.DefinirHorariosResponse;
 import br.pucampinas.reservice.dto.horario.HorarioRequest;
 import br.pucampinas.reservice.model.HorarioAtendimento;
 import br.pucampinas.reservice.repository.HorarioAtendimentoRepository;
+import br.pucampinas.reservice.dto.horario.HorarioLivreResponse;
+import br.pucampinas.reservice.dto.horario.ListarHorariosLivresResponse;
+import br.pucampinas.reservice.model.Agendamento;
+import br.pucampinas.reservice.repository.AgendamentoRepository;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import jakarta.transaction.Transactional;
 
 import org.springframework.stereotype.Service;
@@ -20,6 +26,7 @@ import java.util.Set;
 public class HorarioService {
 
     private final HorarioAtendimentoRepository repository;
+    private final AgendamentoRepository agendamentoRepository;
 
     private static final Set<String> DIAS_VALIDOS = Set.of(
             "domingo",
@@ -31,8 +38,12 @@ public class HorarioService {
             "sabado"
     );
 
-    public HorarioService(HorarioAtendimentoRepository repository) {
+    public HorarioService(
+            HorarioAtendimentoRepository repository,
+            AgendamentoRepository agendamentoRepository) {
+
         this.repository = repository;
+        this.agendamentoRepository = agendamentoRepository;
     }
 
     @Transactional
@@ -95,6 +106,83 @@ public class HorarioService {
         validarSobreposicoes(horarios);
     }
 
+    public ListarHorariosLivresResponse listarHorariosLivres(
+        Long profissionalId,
+        LocalDate data,
+        int duracaoMinutos) {
+
+    String diaSemana = converterDiaSemana(data);
+
+    List<HorarioAtendimento> faixas =
+            repository.findByProfissionalId(profissionalId)
+                    .stream()
+                    .filter(h -> h.getDiaSemana().equals(diaSemana))
+                    .toList();
+
+    List<Agendamento> agendamentosConfirmados =
+            agendamentoRepository.findByProfissionalIdAndDataAndStatus(
+                    profissionalId,
+                    data,
+                    "CONFIRMADO"
+            );
+
+    List<HorarioLivreResponse> horariosLivres =
+            new ArrayList<>();
+
+    for (HorarioAtendimento faixa : faixas) {
+
+        LocalTime inicioFaixa =
+                LocalTime.parse(faixa.getHoraInicio());
+
+        LocalTime fimFaixa =
+                LocalTime.parse(faixa.getHoraFim());
+
+        LocalTime inicioPossivel = inicioFaixa;
+
+        while (!inicioPossivel
+                .plusMinutes(duracaoMinutos)
+                .isAfter(fimFaixa)) {
+
+            LocalTime fimPossivel =
+                    inicioPossivel.plusMinutes(duracaoMinutos);
+
+            boolean conflito = false;
+
+            for (Agendamento agendamento :
+                    agendamentosConfirmados) {
+
+                boolean sobrepoe =
+                        inicioPossivel.isBefore(
+                                agendamento.getHoraFim())
+                        &&
+                        agendamento.getHoraInicio()
+                                .isBefore(fimPossivel);
+
+                if (sobrepoe) {
+                    conflito = true;
+                    break;
+                }
+            }
+
+            if (!conflito) {
+                horariosLivres.add(
+                        new HorarioLivreResponse(
+                                inicioPossivel.toString(),
+                                fimPossivel.toString()
+                        )
+                );
+            }
+
+            inicioPossivel =
+                    inicioPossivel.plusMinutes(30);
+        }
+    }
+
+    return new ListarHorariosLivresResponse(
+            horariosLivres
+    );
+}
+
     private void validarSobreposicoes(List<HorarioRequest> horarios) {
 
         for (int i = 0; i < horarios.size(); i++) {
@@ -126,5 +214,17 @@ public class HorarioService {
                 }
             }
         }
+    }
+    private String converterDiaSemana(LocalDate data) {
+
+        return switch (data.getDayOfWeek()) {
+            case MONDAY -> "segunda";
+            case TUESDAY -> "terca";
+            case WEDNESDAY -> "quarta";
+            case THURSDAY -> "quinta";
+            case FRIDAY -> "sexta";
+            case SATURDAY -> "sabado";
+            case SUNDAY -> "domingo";
+        };
     }
 }

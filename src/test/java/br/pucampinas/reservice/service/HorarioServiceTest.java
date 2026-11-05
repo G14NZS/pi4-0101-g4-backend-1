@@ -1,8 +1,15 @@
 package br.pucampinas.reservice.service;
+import br.pucampinas.reservice.model.Agendamento;
+import br.pucampinas.reservice.model.HorarioAtendimento;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+import static org.mockito.Mockito.when;
 import br.pucampinas.reservice.dto.horario.DefinirHorariosRequest;
 import br.pucampinas.reservice.dto.horario.HorarioRequest;
 import br.pucampinas.reservice.repository.HorarioAtendimentoRepository;
+import br.pucampinas.reservice.repository.AgendamentoRepository;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +31,9 @@ class HorarioServiceTest {
 
     @InjectMocks
     private HorarioService service;
+
+    @Mock
+    private AgendamentoRepository agendamentoRepository;
 
     @Test
     void deveDefinirHorariosValidos() {
@@ -147,5 +157,197 @@ class HorarioServiceTest {
 
         verify(repository, times(2))
                 .save(any());
+    }
+    @Test
+    void deveListarHorariosLivresDe30Em30Minutos() {
+
+        HorarioAtendimento faixa =
+                new HorarioAtendimento(
+                        1L,
+                        "segunda",
+                        "09:00",
+                        "12:00"
+                );
+
+        when(repository.findByProfissionalId(1L))
+                .thenReturn(List.of(faixa));
+
+        when(agendamentoRepository
+                .findByProfissionalIdAndDataAndStatus(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        "CONFIRMADO"
+                ))
+                .thenReturn(List.of());
+
+        var response =
+                service.listarHorariosLivres(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        60
+                );
+
+        assertEquals(5, response.getHorariosLivres().size());
+
+        assertEquals(
+                "09:00",
+                response.getHorariosLivres()
+                        .get(0)
+                        .getHoraInicio()
+        );
+
+        assertEquals(
+                "11:00",
+                response.getHorariosLivres()
+                        .get(4)
+                        .getHoraInicio()
+        );
+    }
+    @Test
+    void naoDeveGerarHorarioQuandoServicoNaoCabeNaFaixa() {
+
+        HorarioAtendimento faixa =
+                new HorarioAtendimento(
+                        1L,
+                        "segunda",
+                        "09:00",
+                        "10:00"
+                );
+
+        when(repository.findByProfissionalId(1L))
+                .thenReturn(List.of(faixa));
+
+        when(agendamentoRepository
+                .findByProfissionalIdAndDataAndStatus(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        "CONFIRMADO"
+                ))
+                .thenReturn(List.of());
+
+        var response =
+                service.listarHorariosLivres(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        90
+                );
+
+        assertEquals(
+                0,
+                response.getHorariosLivres().size()
+        );
+    }
+    @Test
+    void deveRemoverHorariosQueConflitamComAgendamentoConfirmado() {
+
+        HorarioAtendimento faixa =
+                new HorarioAtendimento(
+                        1L,
+                        "segunda",
+                        "09:00",
+                        "12:00"
+                );
+
+        Agendamento agendamento =
+                new Agendamento(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        LocalTime.of(10, 0),
+                        LocalTime.of(11, 0),
+                        "CONFIRMADO"
+                );
+
+        when(repository.findByProfissionalId(1L))
+                .thenReturn(List.of(faixa));
+
+        when(agendamentoRepository
+                .findByProfissionalIdAndDataAndStatus(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        "CONFIRMADO"
+                ))
+                .thenReturn(List.of(agendamento));
+
+        var response =
+                service.listarHorariosLivres(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        60
+                );
+
+        assertEquals(
+                2,
+                response.getHorariosLivres().size()
+        );
+
+        assertEquals(
+                "09:00",
+                response.getHorariosLivres()
+                        .get(0)
+                        .getHoraInicio()
+        );
+
+        assertEquals(
+                "11:00",
+                response.getHorariosLivres()
+                        .get(1)
+                        .getHoraInicio()
+        );
+    }
+    @Test
+    void devePermitirHorarioQueEncostaNoAgendamento() {
+
+        HorarioAtendimento faixa =
+                new HorarioAtendimento(
+                        1L,
+                        "segunda",
+                        "09:00",
+                        "12:00"
+                );
+
+        Agendamento agendamento =
+                new Agendamento(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        LocalTime.of(10, 0),
+                        LocalTime.of(11, 0),
+                        "CONFIRMADO"
+                );
+
+        when(repository.findByProfissionalId(1L))
+                .thenReturn(List.of(faixa));
+
+        when(agendamentoRepository
+                .findByProfissionalIdAndDataAndStatus(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        "CONFIRMADO"
+                ))
+                .thenReturn(List.of(agendamento));
+
+        var response =
+                service.listarHorariosLivres(
+                        1L,
+                        LocalDate.of(2026, 11, 9),
+                        60
+                );
+
+        assertTrue(
+                response.getHorariosLivres()
+                        .stream()
+                        .anyMatch(h ->
+                                h.getHoraInicio()
+                                        .equals("09:00")
+                        )
+        );
+
+        assertTrue(
+                response.getHorariosLivres()
+                        .stream()
+                        .anyMatch(h ->
+                                h.getHoraInicio()
+                                        .equals("11:00")
+                        )
+        );
     }
 }
