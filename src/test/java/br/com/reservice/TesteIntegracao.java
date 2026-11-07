@@ -51,6 +51,7 @@ public abstract class TesteIntegracao {
         env.put("JWT_SEGREDO", SEGREDO);
         env.put("JWT_VALIDADE_MINUTOS", "60");
         env.put("CORS_ORIGENS", ORIGEM_FRONTEND);
+        env.put("CHAVE_INTERNA", "chave-interna-de-teste-123456");
         config = Config.de(env);
 
         banco = new Banco(config.bancoUrl(), config.bancoUsuario(), config.bancoSenha());

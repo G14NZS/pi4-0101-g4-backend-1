@@ -11,6 +11,7 @@ import br.com.reservice.servico.ServicoRecurso;
 import br.com.reservice.servico.ServicoRepositorio;
 import br.com.reservice.sessao.SessaoRecurso;
 import br.com.reservice.sessao.Tokens;
+import br.com.reservice.socket.ServidorSocket;
 
 import java.time.Clock;
 import java.util.logging.Logger;
@@ -29,6 +30,16 @@ public final class App {
         servidor.iniciar(config.porta(), config.threads());
         Runtime.getRuntime().addShutdownHook(new Thread(servidor::parar));
         LOG.info("Backend 1 ouvindo na porta " + servidor.porta());
+
+        ServidorSocket socket = montarSocket(config);
+        socket.iniciar(config.portaSocket(), config.threads());
+        Runtime.getRuntime().addShutdownHook(new Thread(socket::parar));
+        LOG.info("Socket TCP do Backend 1 ouvindo na porta " + socket.porta());
+    }
+
+    /** Socket TCP usado pelo Backend 2. As operações CT12 e CT13 serão registradas aqui (H06). */
+    public static ServidorSocket montarSocket(Config config) {
+        return new ServidorSocket(config.chaveInterna());
     }
 
     /** Liga repositórios, recursos e rotas. O relógio é usado para emitir e conferir tokens. */

@@ -17,10 +17,17 @@ Todo erro volta como `{ "erro": CODIGO, "mensagem": texto }`. O CORS libera as o
 
 ## Como rodar (só precisa de Docker)
 
+O compose sobe MySQL, Backend 1, Backend 2 e frontend. Os três repositórios ficam lado a lado
+(`pi4-0101-g4-backend-1`, `pi4-0101-g4-backend-2`, `pi4-0101-g4-frontend`). Senhas, chaves e credenciais do
+Twilio vêm de variáveis de ambiente; nada disso fica no repositório:
+
 ```sh
-docker compose up -d --build        # MySQL na 3306 + API em http://localhost:8080
+cp .env.example .env                # preencha; o .env está no .gitignore
+docker compose up -d --build        # MySQL 3306, API http://localhost:8080, frontend http://localhost:5175
 docker compose run --rm testes      # roda os testes automáticos (mvn test) contra o MySQL do compose
 docker compose down -v              # derruba tudo e apaga o banco
+# Para guardar os segredos fora da pasta do repositório:
+docker compose --env-file ../segredos-reservice.env up -d --build
 ```
 
 Na primeira subida o MySQL carrega `db/schema.sql` e `db/dados-dev.sql`, que cria a profissional de exemplo
@@ -31,7 +38,7 @@ para o banco ser recriado.
 Ainda não há cadastro de profissional pela API. Para criar um direto no banco, gere o `senha_hash`:
 
 ```sh
-docker compose exec api java -cp backend1.jar br.com.reservice.ferramentas.GerarHashSenha MINHA_SENHA
+docker compose exec backend1 java -cp backend1.jar br.com.reservice.ferramentas.GerarHashSenha MINHA_SENHA
 ```
 
 ## Testando na mão (PowerShell)
@@ -58,4 +65,6 @@ curl.exe -i -X POST http://localhost:8080/servicos -H "Content-Type: application
 | `JWT_SEGREDO` | sim | | Segredo do HS256, com 32 caracteres ou mais |
 | `JWT_VALIDADE_MINUTOS` | não | `120` | Validade do token (campo `exp`) |
 | `CORS_ORIGENS` | não | `http://localhost:5175` | Origens liberadas, separadas por vírgula |
+| `CHAVE_INTERNA` | sim | | Chave que o Backend 2 envia em toda mensagem do socket TCP (16+ caracteres) |
+| `PORTA_SOCKET` | não | `9090` | Porta do socket TCP usado pelo Backend 2 |
 | `PORTA` / `THREADS` | não | `8080` / `16` | Porta HTTP e tamanho do pool de threads |

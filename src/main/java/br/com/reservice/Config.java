@@ -15,7 +15,9 @@ public record Config(
         String bancoSenha,
         String jwtSegredo,
         Duration jwtValidade,
-        Set<String> corsOrigens) {
+        Set<String> corsOrigens,
+        int portaSocket,
+        String chaveInterna) {
 
     public static Config doAmbiente() {
         return de(System.getenv());
@@ -25,6 +27,10 @@ public record Config(
         String segredo = obrigatoria(env, "JWT_SEGREDO");
         if (segredo.length() < 32) {
             throw new IllegalStateException("JWT_SEGREDO precisa ter pelo menos 32 caracteres");
+        }
+        String chave = obrigatoria(env, "CHAVE_INTERNA");
+        if (chave.length() < 16) {
+            throw new IllegalStateException("CHAVE_INTERNA precisa ter pelo menos 16 caracteres");
         }
         return new Config(
                 Integer.parseInt(env.getOrDefault("PORTA", "8080")),
@@ -37,7 +43,9 @@ public record Config(
                 Arrays.stream(env.getOrDefault("CORS_ORIGENS", "http://localhost:5175").split(","))
                         .map(String::trim)
                         .filter(o -> !o.isEmpty())
-                        .collect(Collectors.toUnmodifiableSet()));
+                        .collect(Collectors.toUnmodifiableSet()),
+                Integer.parseInt(env.getOrDefault("PORTA_SOCKET", "9090")),
+                chave);
     }
 
     private static String obrigatoria(Map<String, String> env, String nome) {

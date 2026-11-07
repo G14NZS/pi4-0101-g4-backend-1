@@ -1,44 +1,76 @@
-# Ambiente de desenvolvimento do Backend 1.
-#   docker compose up -d --build              -> MySQL + API em http://localhost:8080
-#   docker compose run --rm testes            -> roda os testes automáticos (mvn test) contra o MySQL
-# Os segredos abaixo são só para desenvolvimento.
+# Sobe o sistema inteiro com um comando: MySQL + Backend 1 + Backend 2 + Frontend.
+#
+#   cp .env.example .env     (preencha os valores; o .env NÃO vai para o Git)
+#   docker compose up -d --build
+#
+# Os repositórios precisam estar lado a lado:
+#   pi4-0101-g4-backend-1/   (este)    pi4-0101-g4-backend-2/    pi4-0101-g4-frontend/
+# Segredos vêm de variáveis de ambiente. Para guardá-los fora da pasta do repositório:
+#   docker compose --env-file ../segredos-reservice.env up -d --build
+#
+# Testes do Backend 1 contra o MySQL do compose:  docker compose run --rm testes
 
 services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: reservice
-      MYSQL_USER: reservice
-      MYSQL_PASSWORD: reservice
+      MYSQL_USER: ${MYSQL_USER:-reservice}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD}
       TZ: America/Sao_Paulo
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/dados-dev.sql:/docker-entrypoint-initdb.d/02-dados-dev.sql:ro
       - dados-mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
       timeout: 5s
       retries: 30
 
-  api:
+  backend1:
     build: .
     environment:
       PORTA: "8080"
       DB_URL: jdbc:mysql://mysql:3306/reservice?allowPublicKeyRetrieval=true
-      DB_USUARIO: reservice
-      DB_SENHA: reservice
-      JWT_SEGREDO: segredo-de-desenvolvimento-troque-em-producao-0123456789
+      DB_USUARIO: ${MYSQL_USER:-reservice}
+      DB_SENHA: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD}
+      JWT_SEGREDO: ${JWT_SEGREDO:?defina JWT_SEGREDO (32+ caracteres)}
       JWT_VALIDADE_MINUTOS: "120"
-      CORS_ORIGENS: http://localhost:5175
+      CORS_ORIGENS: ${CORS_ORIGENS:-http://localhost:5175}
+      PORTA_SOCKET: "9090"
+      CHAVE_INTERNA: ${CHAVE_INTERNA:?defina CHAVE_INTERNA (16+ caracteres)}
     ports:
-      - "8080:8080"
+      - "8080:8080"      # HTTP para o frontend; o socket 9090 fica só na rede interna do compose
     depends_on:
       mysql:
         condition: service_healthy
+
+  backend2:
+    build: ${BACKEND2_DIR:-../pi4-0101-g4-backend-2}
+    environment:
+      BACKEND1_HOST: backend1
+      BACKEND1_PORTA: "9090"
+      CHAVE_INTERNA: ${CHAVE_INTERNA:?defina CHAVE_INTERNA (16+ caracteres)}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
+    restart: on-failure:3   # a partida falha rápido se o Backend 1 não responde ou recusa a chave
+    depends_on:
+      - backend1
+
+  frontend:
+    build:
+      context: ${FRONTEND_DIR:-../pi4-0101-g4-frontend}
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    ports:
+      - "5175:80"
+    depends_on:
+      - backend1
 
   testes:
     image: maven:3.9.9-eclipse-temurin-21
@@ -48,7 +80,7 @@ services:
     environment:
       TESTE_DB_URL: jdbc:mysql://mysql:3306/reservice_teste?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
       TESTE_DB_USUARIO: root
-      TESTE_DB_SENHA: root
+      TESTE_DB_SENHA: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
     volumes:
       - .:/app
       - cache-maven:/root/.m2
