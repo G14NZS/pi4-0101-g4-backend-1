@@ -52,12 +52,13 @@ public final class App {
         SessaoRecurso sessoes = new SessaoRecurso(profissionais, tokens);
         ServicoRecurso servicoRecurso = new ServicoRecurso(servicos, profissionais, tokens);
         AgendamentoRecurso agendamentoRecurso = new AgendamentoRecurso(banco, servicos, new HorarioRepositorio(),
-                new ClienteRepositorio(), new AgendamentoRepositorio());
+                new ClienteRepositorio(), new AgendamentoRepositorio(), tokens);
 
         return new Servidor(config.corsOrigens())
                 .rota("POST", "/sessoes", sessoes::abrirSessao)
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
-                .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento);
+                .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento)
+                .rota("GET", "/agendamentos", agendamentoRecurso::listarAgendamentosDoDia);
     }
 }

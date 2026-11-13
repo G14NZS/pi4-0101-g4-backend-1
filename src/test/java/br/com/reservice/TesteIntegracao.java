@@ -100,7 +100,15 @@ public abstract class TesteIntegracao {
     }
 
     protected HttpResponse<String> get(String caminho) throws Exception {
-        return enviar(HttpRequest.newBuilder(uri(caminho)).GET().header("Origin", ORIGEM_FRONTEND));
+        return get(caminho, null);
+    }
+
+    protected HttpResponse<String> get(String caminho, String token) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(uri(caminho)).GET().header("Origin", ORIGEM_FRONTEND);
+        if (token != null) {
+            b.header("Authorization", "Bearer " + token);
+        }
+        return enviar(b);
     }
 
     protected HttpResponse<String> post(String caminho, String corpoJson, String token) throws Exception {

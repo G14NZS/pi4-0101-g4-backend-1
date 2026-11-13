@@ -1,5 +1,6 @@
 package br.com.reservice.agendamento;
 
+import br.com.reservice.agendamento.AgendamentoRepositorio.AgendamentoDoDia;
 import br.com.reservice.banco.Banco;
 import br.com.reservice.cliente.Cliente;
 import br.com.reservice.cliente.ClienteRepositorio;
@@ -9,16 +10,22 @@ import br.com.reservice.http.Requisicao;
 import br.com.reservice.http.Resposta;
 import br.com.reservice.servico.Servico;
 import br.com.reservice.servico.ServicoRepositorio;
+import br.com.reservice.sessao.Tokens;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Optional;
 
-/** CT7 criarAgendamento ({@code POST /agendamentos}). Sem login: o cliente é identificado pelo telefone. */
+/**
+ * CT7 criarAgendamento ({@code POST /agendamentos}), sem login: o cliente é identificado pelo telefone.
+ * CT11 listarAgendamentosDoDia ({@code GET /agendamentos}), com o token do profissional.
+ */
 public class AgendamentoRecurso {
 
     /** Tamanho da coluna {@code cliente.nome}. */
@@ -35,6 +42,9 @@ public class AgendamentoRecurso {
             String status) {
     }
 
+    public record AgendamentosDoDia(LocalDate data, List<AgendamentoDoDia> agendamentos) {
+    }
+
     private record Pedido(int servicoId, LocalDateTime inicio, String telefone, String nome) {
     }
 
@@ -43,14 +53,45 @@ public class AgendamentoRecurso {
     private final HorarioRepositorio horarios;
     private final ClienteRepositorio clientes;
     private final AgendamentoRepositorio agendamentos;
+    private final Tokens tokens;
 
     public AgendamentoRecurso(Banco banco, ServicoRepositorio servicos, HorarioRepositorio horarios,
-                              ClienteRepositorio clientes, AgendamentoRepositorio agendamentos) {
+                              ClienteRepositorio clientes, AgendamentoRepositorio agendamentos, Tokens tokens) {
         this.banco = banco;
         this.servicos = servicos;
         this.horarios = horarios;
         this.clientes = clientes;
         this.agendamentos = agendamentos;
+        this.tokens = tokens;
+    }
+
+    /**
+     * CT11 listarAgendamentosDoDia ({@code GET /agendamentos?data=AAAA-MM-DD}): só os confirmados do
+     * profissional do token, na data pedida, em ordem de início. O token é conferido antes da data.
+     */
+    public Resposta listarAgendamentosDoDia(Requisicao requisicao) throws SQLException {
+        int profissionalId = tokens.profissionalAutenticado(requisicao);
+        LocalDate data = lerData(requisicao.parametroConsulta("data").orElse(null));
+        try (Connection c = banco.conectar()) {
+            return Resposta.ok(new AgendamentosDoDia(data,
+                    agendamentos.listarConfirmadosDoDia(c, profissionalId, data)));
+        }
+    }
+
+    /** Data no formato AAAA-MM-DD e existente no calendário (2026-02-30 é recusada). */
+    private static LocalDate lerData(String valor) {
+        if (valor == null) {
+            throw dataInvalida();
+        }
+        try {
+            return LocalDate.parse(valor.trim());
+        } catch (DateTimeParseException e) {
+            throw dataInvalida();
+        }
+    }
+
+    private static ErroApi dataInvalida() {
+        return new ErroApi(400, "DATA_INVALIDA", "Informe a data no formato AAAA-MM-DD, por exemplo 2026-10-20.");
     }
 
     public Resposta criarAgendamento(Requisicao requisicao) throws SQLException {

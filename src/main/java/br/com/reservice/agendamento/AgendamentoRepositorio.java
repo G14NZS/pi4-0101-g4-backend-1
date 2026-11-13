@@ -7,7 +7,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Acesso à tabela {@code agendamento} (CT18). Os métodos usam a conexão (e a transação) de quem chama. */
 public class AgendamentoRepositorio {
@@ -35,6 +38,51 @@ public class AgendamentoRepositorio {
             ps.setObject(4, inicio);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
+            }
+        }
+    }
+
+    /** Agendamento do dia já com o nome e o telefone do cliente e o nome do serviço (CT11). */
+    public record AgendamentoDoDia(
+            int agendamentoId,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            String clienteNome,
+            String clienteTelefone,
+            String servicoNome) {
+    }
+
+    /**
+     * Agendamentos confirmados do profissional que começam no dia, em ordem de início.
+     * Uma consulta só, com JOIN, e o filtro por intervalo em {@code inicio} usa o índice
+     * {@code ix_agendamento_profissional_inicio}.
+     */
+    public List<AgendamentoDoDia> listarConfirmadosDoDia(Connection c, int profissionalId, LocalDate dia)
+            throws SQLException {
+        String sql = "SELECT a.id, a.inicio, a.fim, c.nome AS cliente_nome, c.telefone AS cliente_telefone,"
+                + " s.nome AS servico_nome"
+                + " FROM agendamento a"
+                + " JOIN cliente c ON c.id = a.cliente_id"
+                + " JOIN servico s ON s.id = a.servico_id"
+                + " WHERE a.profissional_id = ? AND a.status = ? AND a.inicio >= ? AND a.inicio < ?"
+                + " ORDER BY a.inicio, a.id";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, profissionalId);
+            ps.setString(2, Agendamento.CONFIRMADO);
+            ps.setObject(3, dia.atStartOfDay());
+            ps.setObject(4, dia.plusDays(1).atStartOfDay());
+            try (ResultSet rs = ps.executeQuery()) {
+                List<AgendamentoDoDia> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(new AgendamentoDoDia(
+                            rs.getInt("id"),
+                            rs.getObject("inicio", LocalDateTime.class),
+                            rs.getObject("fim", LocalDateTime.class),
+                            rs.getString("cliente_nome"),
+                            rs.getString("cliente_telefone"),
+                            rs.getString("servico_nome")));
+                }
+                return lista;
             }
         }
     }
