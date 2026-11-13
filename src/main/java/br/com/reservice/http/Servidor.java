@@ -119,7 +119,7 @@ public class Servidor {
         h.add("Vary", "Origin");
         if (origem != null && corsOrigens.contains(origem)) {
             h.set("Access-Control-Allow-Origin", origem);
-            h.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            h.set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
             h.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
             h.set("Access-Control-Max-Age", "600");
         }

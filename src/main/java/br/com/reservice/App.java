@@ -4,6 +4,7 @@ import br.com.reservice.agendamento.AgendamentoRecurso;
 import br.com.reservice.agendamento.AgendamentoRepositorio;
 import br.com.reservice.banco.Banco;
 import br.com.reservice.cliente.ClienteRepositorio;
+import br.com.reservice.horario.HorarioRecurso;
 import br.com.reservice.horario.HorarioRepositorio;
 import br.com.reservice.http.Servidor;
 import br.com.reservice.profissional.ProfissionalRepositorio;
@@ -51,12 +52,16 @@ public final class App {
 
         SessaoRecurso sessoes = new SessaoRecurso(profissionais, tokens);
         ServicoRecurso servicoRecurso = new ServicoRecurso(servicos, profissionais, tokens);
-        AgendamentoRecurso agendamentoRecurso = new AgendamentoRecurso(banco, servicos, new HorarioRepositorio(),
-                new ClienteRepositorio(), new AgendamentoRepositorio());
+        HorarioRepositorio horarios = new HorarioRepositorio();
+        AgendamentoRepositorio agendamentos = new AgendamentoRepositorio();
+        AgendamentoRecurso agendamentoRecurso = new AgendamentoRecurso(banco, servicos, horarios,
+                new ClienteRepositorio(), agendamentos);
+        HorarioRecurso horarioRecurso = new HorarioRecurso(banco, horarios, agendamentos, tokens);
 
         return new Servidor(config.corsOrigens())
                 .rota("POST", "/sessoes", sessoes::abrirSessao)
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
+                .rota("PUT", "/horarios", horarioRecurso::definirHorarios)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
                 .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento);
     }

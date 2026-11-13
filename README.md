@@ -11,6 +11,7 @@ JWT (HS256, com `exp`) e bcrypt. Os contratos estão em [`docs/contratos/`](docs
 | H02.1 | CT1 abrirSessao, CT14 profissional | `POST /sessoes` |
 | H02.2 | CT2 cadastrarServico, CT3 listarServicos, CT15 servico | `POST /servicos`, `GET /profissionais/{slug}/servicos` |
 | H04.1 | CT7 criarAgendamento, CT16 horario_atendimento, CT17 cliente, CT18 agendamento | `POST /agendamentos` |
+| H03.1 | CT4 definirHorarios | `PUT /horarios` (substitui a grade semanal inteira) |
 
 Todo erro volta como `{ "erro": CODIGO, "mensagem": texto }`. O CORS libera as origens de `CORS_ORIGENS`
 (padrão `http://localhost:5175`) com os cabeçalhos `Authorization` e `Content-Type`.
