@@ -46,10 +46,11 @@ CREATE TABLE IF NOT EXISTS horario_atendimento (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 CREATE TABLE IF NOT EXISTS cliente (
-  id        INT          NOT NULL AUTO_INCREMENT,
-  nome      VARCHAR(120) NOT NULL,
-  telefone  VARCHAR(20)  NOT NULL,
-  criado_em DATETIME     NOT NULL,
+  id         INT           NOT NULL AUTO_INCREMENT,
+  nome       VARCHAR(120)  NOT NULL,
+  telefone   VARCHAR(20)   NOT NULL,
+  senha_hash VARCHAR(100)  NOT NULL,
+  criado_em  DATETIME      NOT NULL,
   PRIMARY KEY (id),
   CONSTRAINT uq_cliente_telefone UNIQUE (telefone)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;

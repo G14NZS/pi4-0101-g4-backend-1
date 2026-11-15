@@ -135,4 +135,39 @@ public abstract class TesteIntegracao {
                 "mensagem vazia: " + resposta.body());
         assertEquals(2, corpo.size(), "corpo de erro deve ter só erro e mensagem: " + resposta.body());
     }
+    protected record ClienteLogado(int id, String token) {
+    }
+
+    protected ClienteLogado criarClienteLogado(
+            String nome,
+            String telefone,
+            String senha) throws Exception {
+
+        String cadastro = Json.MAPPER.createObjectNode()
+                .put("nome", nome)
+                .put("telefone", telefone)
+                .put("senha", senha)
+                .toString();
+
+        HttpResponse<String> respostaCadastro =
+                post("/clientes", cadastro, null);
+
+        assertEquals(201, respostaCadastro.statusCode(), respostaCadastro.body());
+
+        String login = Json.MAPPER.createObjectNode()
+                .put("telefone", telefone)
+                .put("senha", senha)
+                .toString();
+
+        HttpResponse<String> respostaLogin =
+                post("/clientes/sessoes", login, null);
+
+        assertEquals(200, respostaLogin.statusCode(), respostaLogin.body());
+
+        JsonNode corpo = json(respostaLogin);
+
+        return new ClienteLogado(
+                corpo.get("clienteId").asInt(),
+                corpo.get("token").asText());
+    }
 }

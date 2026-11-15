@@ -1,5 +1,6 @@
 package br.com.reservice;
 
+import br.com.reservice.cliente.ClienteRecurso;
 import br.com.reservice.agendamento.AgendamentoRecurso;
 import br.com.reservice.agendamento.AgendamentoRepositorio;
 import br.com.reservice.banco.Banco;
@@ -46,18 +47,29 @@ public final class App {
     public static Servidor montar(Config config, Clock relogio) {
         Banco banco = new Banco(config.bancoUrl(), config.bancoUsuario(), config.bancoSenha());
         Tokens tokens = new Tokens(config.jwtSegredo(), config.jwtValidade(), relogio);
+
         ProfissionalRepositorio profissionais = new ProfissionalRepositorio(banco);
         ServicoRepositorio servicos = new ServicoRepositorio(banco);
+        ClienteRepositorio clientes = new ClienteRepositorio();
 
         SessaoRecurso sessoes = new SessaoRecurso(profissionais, tokens);
         ServicoRecurso servicoRecurso = new ServicoRecurso(servicos, profissionais, tokens);
-        AgendamentoRecurso agendamentoRecurso = new AgendamentoRecurso(banco, servicos, new HorarioRepositorio(),
-                new ClienteRepositorio(), new AgendamentoRepositorio());
+        ClienteRecurso clienteRecurso = new ClienteRecurso(banco, clientes, tokens);
 
+        AgendamentoRecurso agendamentoRecurso =
+                new AgendamentoRecurso(
+                        banco,
+                        servicos,
+                        new HorarioRepositorio(),
+                        clientes,
+                        new AgendamentoRepositorio(),
+                        tokens);
         return new Servidor(config.corsOrigens())
                 .rota("POST", "/sessoes", sessoes::abrirSessao)
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
-                .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento);
+                .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento)
+                .rota("POST", "/clientes", clienteRecurso::cadastrar)
+                .rota("POST", "/clientes/sessoes", clienteRecurso::entrar);
     }
 }
