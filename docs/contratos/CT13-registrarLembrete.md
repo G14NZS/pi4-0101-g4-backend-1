@@ -33,3 +33,9 @@
 | O lembrete desse agendamento já foi registrado | erro `LEMBRETE_JA_REGISTRADO`. O Backend 2 ignora e segue. |
 
 Todo erro volta em uma mensagem JSON com `ok` igual a `false` e os campos `erro` e `mensagem`, conforme definido na visão geral.
+
+## Quando o SMS foi aceito e o registro falhou
+
+Se o Serviço de mensagens aceitou o SMS, mas o registrarLembrete não chegou ao Backend 1 ou voltou com erro que não seja `LEMBRETE_JA_REGISTRADO` (conexão caiu, Backend 1 fora do ar, `ERRO_INTERNO`), nada é gravado: o `lembrete_status` continua `pendente`. Assim, se o início ainda estiver dentro da janela, o agendamento volta na próxima listarLembretesPendentes (CT12) e o lembrete pode sair de novo no ciclo seguinte. Escolhemos o risco de um SMS repetido em vez do risco de o cliente ficar sem lembrete. O Backend 2 não tenta registrar de novo no mesmo ciclo.
+
+O registro é gravado uma vez só por agendamento: quando dois registros do mesmo agendamento chegam juntos, só um grava e o outro recebe `LEMBRETE_JA_REGISTRADO`.

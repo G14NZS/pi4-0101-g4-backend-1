@@ -8,6 +8,8 @@
 | Atende | E6 |
 | Como chamar | Mensagem JSON com `operacao` igual a `listarLembretesPendentes`. O campo `chaveInterna` leva a chave combinada entre Backend 1 e Backend 2, armazenada em variável de ambiente. |
 
+Devolve os agendamentos com `status` confirmado, `lembrete_status` pendente e `inicio` depois de agora e até `ate`, inclusive (janela `(agora, ate]`), ordenados por `inicio`. O "agora" é o relógio do Backend 1, no horário de Brasília. Um `ate` igual ou anterior a agora devolve a lista vazia.
+
 ## Entrada
 
 | Campo | Tipo | Obrigatório | Exemplo |

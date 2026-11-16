@@ -15,6 +15,7 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,7 +34,7 @@ class ConcorrenciaTest extends TesteIntegracao {
 
     @BeforeAll
     void subirSocket() throws Exception {
-        socket = App.montarSocket(config);
+        socket = App.montarSocket(config, Clock.systemUTC());
         assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
             socket.iniciar(0, 2);
         });
@@ -46,7 +47,7 @@ class ConcorrenciaTest extends TesteIntegracao {
 
     @Test
     void iniciarVoltaNaHoraSemPrenderAThreadQueChamou() throws Exception {
-        ServidorSocket outro = App.montarSocket(config);
+        ServidorSocket outro = App.montarSocket(config, Clock.systemUTC());
         try {
             assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
                 outro.iniciar(0, 1);

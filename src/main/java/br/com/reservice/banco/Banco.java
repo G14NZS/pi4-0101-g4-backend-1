@@ -3,6 +3,7 @@ package br.com.reservice.banco;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -32,6 +33,11 @@ public class Banco {
     }
 
     public static LocalDateTime agora() {
-        return LocalDateTime.now(FUSO).truncatedTo(ChronoUnit.SECONDS);
+        return agora(Clock.system(FUSO));
+    }
+
+    /** Agora no horário de Brasília segundo o relógio dado (nos testes, um relógio parado). */
+    public static LocalDateTime agora(Clock relogio) {
+        return LocalDateTime.now(relogio.withZone(FUSO)).truncatedTo(ChronoUnit.SECONDS);
     }
 }

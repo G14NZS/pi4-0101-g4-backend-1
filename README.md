@@ -13,9 +13,19 @@ JWT (HS256, com `exp`) e bcrypt. Os contratos estão em [`docs/contratos/`](docs
 | H04.1 | CT7 criarAgendamento, CT16 horario_atendimento, CT17 cliente, CT18 agendamento | `POST /agendamentos` |
 | H06.1 | CT11 listarAgendamentosDoDia | `GET /agendamentos?data=AAAA-MM-DD` |
 | H07.1 | CT8 listarAgendamentosDoCliente, CT9 cancelarAgendamento | `GET /agendamentos/do-cliente`, `PATCH /agendamentos/{id}/cancelamento` |
+| H08.1 | CT12 listarLembretesPendentes, CT13 registrarLembrete | socket TCP (`PORTA_SOCKET`), só para o Backend 2 |
 
 Todo erro volta como `{ "erro": CODIGO, "mensagem": texto }`. O CORS libera as origens de `CORS_ORIGENS`
 (padrão `http://localhost:5175`) com os cabeçalhos `Authorization` e `Content-Type`.
+
+No socket TCP vai uma mensagem JSON por linha, sempre com a `chaveInterna`, e a resposta vem na mesma conexão:
+
+```text
+{"operacao":"listarLembretesPendentes","dados":{"ate":"2026-10-20T14:15:00"},"chaveInterna":"..."}
+{"ok":true,"dados":{"lembretes":[{"agendamentoId":87,"clienteNome":"Maria Souza","clienteTelefone":"+5519988887777","servicoNome":"Manicure simples","profissionalNome":"Ana Beatriz Costa","inicio":"2026-10-20T14:00:00"}]}}
+{"operacao":"registrarLembrete","dados":{"agendamentoId":87,"resultado":"enviado"},"chaveInterna":"..."}
+{"ok":true,"dados":{"agendamentoId":87,"resultado":"enviado","registradoEm":"2026-10-20T11:15:03"}}
+```
 
 ## Como rodar (só precisa de Docker)
 
