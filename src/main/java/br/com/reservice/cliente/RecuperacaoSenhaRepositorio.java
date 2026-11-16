@@ -12,14 +12,20 @@ import java.util.Optional;
 
 public class RecuperacaoSenhaRepositorio {
 
+    public record Pendente(
+            int id,
+            int clienteId,
+            String telefone) {
+    }
+
     public int inserirPendente(
             Connection c,
             int clienteId) throws SQLException {
 
         String sql = """
                 INSERT INTO recuperacao_senha
-                (cliente_id, criado_em)
-                VALUES (?, ?)
+                (cliente_id, envio_status, criado_em)
+                VALUES (?, 'pendente', ?)
                 """;
 
         try (PreparedStatement ps =
@@ -38,6 +44,37 @@ public class RecuperacaoSenhaRepositorio {
         }
     }
 
+    public Optional<Pendente> buscarPendenteParaEnvio(
+            Connection c) throws SQLException {
+
+        String sql = """
+                SELECT r.id,
+                       r.cliente_id,
+                       c.telefone
+                FROM recuperacao_senha r
+                JOIN cliente c ON c.id = r.cliente_id
+                WHERE r.envio_status = 'pendente'
+                  AND r.codigo_hash IS NULL
+                  AND r.utilizado_em IS NULL
+                ORDER BY r.id
+                LIMIT 1
+                FOR UPDATE
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            if (!rs.next()) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new Pendente(
+                    rs.getInt("id"),
+                    rs.getInt("cliente_id"),
+                    rs.getString("telefone")));
+        }
+    }
+
     public void definirCodigo(
             Connection c,
             int id,
@@ -46,8 +83,11 @@ public class RecuperacaoSenhaRepositorio {
 
         String sql = """
                 UPDATE recuperacao_senha
-                SET codigo_hash = ?, expira_em = ?
+                SET codigo_hash = ?,
+                    expira_em = ?,
+                    envio_status = 'processando'
                 WHERE id = ?
+                  AND envio_status = 'pendente'
                   AND utilizado_em IS NULL
                 """;
 
@@ -69,6 +109,7 @@ public class RecuperacaoSenhaRepositorio {
                 FROM recuperacao_senha
                 WHERE cliente_id = ?
                   AND codigo_hash IS NOT NULL
+                  AND envio_status = 'enviado'
                   AND utilizado_em IS NULL
                 ORDER BY id DESC
                 LIMIT 1
@@ -90,6 +131,29 @@ public class RecuperacaoSenhaRepositorio {
                         rs.getObject("utilizado_em", LocalDateTime.class),
                         rs.getObject("criado_em", LocalDateTime.class)));
             }
+        }
+    }
+
+    public void registrarEnvio(
+            Connection c,
+            int id,
+            boolean sucesso,
+            String erro) throws SQLException {
+
+        String sql = """
+                UPDATE recuperacao_senha
+                SET envio_status = ?,
+                    envio_erro = ?,
+                    envio_registrado_em = ?
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, sucesso ? "enviado" : "falhou");
+            ps.setString(2, sucesso ? null : erro);
+            ps.setObject(3, Banco.agora());
+            ps.setInt(4, id);
+            ps.executeUpdate();
         }
     }
 

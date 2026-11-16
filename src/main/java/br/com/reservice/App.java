@@ -15,6 +15,7 @@ import br.com.reservice.sessao.Tokens;
 import br.com.reservice.socket.ServidorSocket;
 import br.com.reservice.cliente.RecuperacaoSenhaRecurso;
 import br.com.reservice.cliente.RecuperacaoSenhaRepositorio;
+import br.com.reservice.cliente.RecuperacaoSenhaSocketRecurso;
 
 import java.time.Clock;
 import java.util.logging.Logger;
@@ -42,7 +43,26 @@ public final class App {
 
     /** Socket TCP usado pelo Backend 2. As operações CT12 e CT13 serão registradas aqui (H06). */
     public static ServidorSocket montarSocket(Config config) {
-        return new ServidorSocket(config.chaveInterna());
+        Banco banco = new Banco(
+                config.bancoUrl(),
+                config.bancoUsuario(),
+                config.bancoSenha());
+
+        RecuperacaoSenhaRepositorio recuperacoes =
+                new RecuperacaoSenhaRepositorio();
+
+        RecuperacaoSenhaSocketRecurso recurso =
+                new RecuperacaoSenhaSocketRecurso(
+                        banco,
+                        recuperacoes);
+
+        return new ServidorSocket(config.chaveInterna())
+                .operacao(
+                        "buscar_recuperacao_senha",
+                        recurso::buscarPendente)
+                .operacao(
+                        "registrar_envio_recuperacao",
+                        recurso::registrarEnvio);
     }
 
     /** Liga repositórios, recursos e rotas. O relógio é usado para emitir e conferir tokens. */
