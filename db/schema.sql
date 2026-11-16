@@ -55,6 +55,18 @@ CREATE TABLE IF NOT EXISTS cliente (
   CONSTRAINT uq_cliente_telefone UNIQUE (telefone)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
+CREATE TABLE IF NOT EXISTS recuperacao_senha (
+  id            INT          NOT NULL AUTO_INCREMENT,
+  cliente_id    INT          NOT NULL,
+  codigo_hash   VARCHAR(100) NULL,
+  expira_em     DATETIME     NULL,
+  utilizado_em  DATETIME     NULL,
+  criado_em     DATETIME     NOT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_recuperacao_cliente
+    FOREIGN KEY (cliente_id) REFERENCES cliente(id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
 CREATE TABLE IF NOT EXISTS agendamento (
   id                     INT      NOT NULL AUTO_INCREMENT,
   profissional_id        INT      NOT NULL,

@@ -99,4 +99,21 @@ public class ClienteRepositorio {
             }
         }
     }
+    public void atualizarSenha(
+            Connection c,
+            int clienteId,
+            String senhaHash) throws SQLException {
+
+        String sql = """
+                UPDATE cliente
+                SET senha_hash = ?
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, senhaHash);
+            ps.setInt(2, clienteId);
+            ps.executeUpdate();
+        }
+    }
 }

@@ -13,6 +13,8 @@ import br.com.reservice.servico.ServicoRepositorio;
 import br.com.reservice.sessao.SessaoRecurso;
 import br.com.reservice.sessao.Tokens;
 import br.com.reservice.socket.ServidorSocket;
+import br.com.reservice.cliente.RecuperacaoSenhaRecurso;
+import br.com.reservice.cliente.RecuperacaoSenhaRepositorio;
 
 import java.time.Clock;
 import java.util.logging.Logger;
@@ -55,21 +57,25 @@ public final class App {
         SessaoRecurso sessoes = new SessaoRecurso(profissionais, tokens);
         ServicoRecurso servicoRecurso = new ServicoRecurso(servicos, profissionais, tokens);
         ClienteRecurso clienteRecurso = new ClienteRecurso(banco, clientes, tokens);
-
-        AgendamentoRecurso agendamentoRecurso =
-                new AgendamentoRecurso(
+        AgendamentoRecurso agendamentoRecurso = new AgendamentoRecurso(
                         banco,
                         servicos,
                         new HorarioRepositorio(),
                         clientes,
                         new AgendamentoRepositorio(),
                         tokens);
+
+        RecuperacaoSenhaRepositorio recuperacoes = new RecuperacaoSenhaRepositorio();
+
+        RecuperacaoSenhaRecurso recuperacaoSenhaRecurso = new RecuperacaoSenhaRecurso(banco, clientes, recuperacoes);
         return new Servidor(config.corsOrigens())
                 .rota("POST", "/sessoes", sessoes::abrirSessao)
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
                 .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento)
                 .rota("POST", "/clientes", clienteRecurso::cadastrar)
-                .rota("POST", "/clientes/sessoes", clienteRecurso::entrar);
+                .rota("POST", "/clientes/sessoes", clienteRecurso::entrar)
+                .rota("POST", "/clientes/recuperacao-senha", recuperacaoSenhaRecurso::solicitar)
+                .rota("POST", "/clientes/recuperacao-senha/confirmar", recuperacaoSenhaRecurso::confirmar);
     }
 }

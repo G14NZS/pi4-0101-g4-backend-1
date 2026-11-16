@@ -70,6 +70,7 @@ public abstract class TesteIntegracao {
     @BeforeEach
     void limparTabelas() throws Exception {
         try (Connection c = banco.conectar(); Statement st = c.createStatement()) {
+            st.executeUpdate("DELETE FROM recuperacao_senha");
             st.executeUpdate("DELETE FROM agendamento");
             st.executeUpdate("DELETE FROM cliente");
             st.executeUpdate("DELETE FROM horario_atendimento");
@@ -81,6 +82,7 @@ public abstract class TesteIntegracao {
     private void recriarEsquema() throws Exception {
         String schema = Files.readString(Path.of("db", "schema.sql"));
         try (Connection c = banco.conectar(); Statement st = c.createStatement()) {
+            st.executeUpdate("DROP TABLE IF EXISTS recuperacao_senha");
             st.executeUpdate("DROP TABLE IF EXISTS agendamento");
             st.executeUpdate("DROP TABLE IF EXISTS cliente");
             st.executeUpdate("DROP TABLE IF EXISTS horario_atendimento");
