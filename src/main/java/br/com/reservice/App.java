@@ -59,6 +59,8 @@ public final class App {
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
                 .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento)
-                .rota("GET", "/agendamentos", agendamentoRecurso::listarAgendamentosDoDia);
+                .rota("GET", "/agendamentos", agendamentoRecurso::listarAgendamentosDoDia)
+                .rota("GET", "/agendamentos/do-cliente", agendamentoRecurso::listarAgendamentosDoCliente)
+                .rota("PATCH", "/agendamentos/([^/]+)/cancelamento", agendamentoRecurso::cancelarAgendamento);
     }
 }

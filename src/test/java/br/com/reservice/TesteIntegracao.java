@@ -122,6 +122,13 @@ public abstract class TesteIntegracao {
         return enviar(b);
     }
 
+    protected HttpResponse<String> patch(String caminho, String corpoJson) throws Exception {
+        return enviar(HttpRequest.newBuilder(uri(caminho))
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(corpoJson))
+                .header("Content-Type", "application/json")
+                .header("Origin", ORIGEM_FRONTEND));
+    }
+
     protected HttpResponse<String> enviar(HttpRequest.Builder pedido) throws Exception {
         return cliente.send(pedido.build(), HttpResponse.BodyHandlers.ofString());
     }
