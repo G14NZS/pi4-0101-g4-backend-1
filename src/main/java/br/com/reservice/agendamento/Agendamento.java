@@ -17,5 +17,6 @@ public record Agendamento(
         LocalDateTime atualizadoEm) {
 
     public static final String CONFIRMADO = "confirmado";
+    public static final String CANCELADO = "cancelado";
     public static final String LEMBRETE_PENDENTE = "pendente";
 }

@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /** Acesso à tabela {@code agendamento} (CT18). Os métodos usam a conexão (e a transação) de quem chama. */
 public class AgendamentoRepositorio {
@@ -84,6 +85,85 @@ public class AgendamentoRepositorio {
                 }
                 return lista;
             }
+        }
+    }
+
+    /** Agendamento do cliente já com o serviço e o profissional (CT8). */
+    public record AgendamentoDoCliente(
+            int agendamentoId,
+            int servicoId,
+            String servicoNome,
+            String profissionalNome,
+            String profissionalSlug,
+            LocalDateTime inicio,
+            LocalDateTime fim) {
+    }
+
+    /** Agendamentos confirmados do cliente que começam depois de {@code agora}, em ordem de início (CT8). */
+    public List<AgendamentoDoCliente> listarFuturosConfirmadosDoCliente(Connection c, int clienteId,
+                                                                        LocalDateTime agora) throws SQLException {
+        String sql = "SELECT a.id, a.servico_id, s.nome AS servico_nome, p.nome AS profissional_nome,"
+                + " p.slug AS profissional_slug, a.inicio, a.fim"
+                + " FROM agendamento a"
+                + " JOIN servico s ON s.id = a.servico_id"
+                + " JOIN profissional p ON p.id = a.profissional_id"
+                + " WHERE a.cliente_id = ? AND a.status = ? AND a.inicio > ?"
+                + " ORDER BY a.inicio, a.id";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, clienteId);
+            ps.setString(2, Agendamento.CONFIRMADO);
+            ps.setObject(3, agora);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<AgendamentoDoCliente> lista = new ArrayList<>();
+                while (rs.next()) {
+                    lista.add(new AgendamentoDoCliente(
+                            rs.getInt("id"),
+                            rs.getInt("servico_id"),
+                            rs.getString("servico_nome"),
+                            rs.getString("profissional_nome"),
+                            rs.getString("profissional_slug"),
+                            rs.getObject("inicio", LocalDateTime.class),
+                            rs.getObject("fim", LocalDateTime.class)));
+                }
+                return lista;
+            }
+        }
+    }
+
+    /** Estado do agendamento que o cancelamento precisa conferir (CT9). */
+    public record SituacaoDoAgendamento(String clienteTelefone, String status, LocalDateTime inicio) {
+    }
+
+    /**
+     * Lê o agendamento e trava a linha até o fim da transação, para que dois cancelamentos
+     * do mesmo agendamento rodem um de cada vez.
+     */
+    public Optional<SituacaoDoAgendamento> travarParaCancelar(Connection c, int agendamentoId)
+            throws SQLException {
+        String sql = "SELECT c.telefone, a.status, a.inicio FROM agendamento a"
+                + " JOIN cliente c ON c.id = a.cliente_id WHERE a.id = ? FOR UPDATE";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, agendamentoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new SituacaoDoAgendamento(
+                        rs.getString("telefone"),
+                        rs.getString("status"),
+                        rs.getObject("inicio", LocalDateTime.class)));
+            }
+        }
+    }
+
+    /** Muda o status para cancelado e grava {@code atualizado_em}. */
+    public void cancelar(Connection c, int agendamentoId, LocalDateTime atualizadoEm) throws SQLException {
+        String sql = "UPDATE agendamento SET status = ?, atualizado_em = ? WHERE id = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, Agendamento.CANCELADO);
+            ps.setObject(2, atualizadoEm);
+            ps.setInt(3, agendamentoId);
+            ps.executeUpdate();
         }
     }
 
