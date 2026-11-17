@@ -1,5 +1,8 @@
 package br.com.reservice.agendamento;
 
+import br.com.reservice.agendamento.AgendamentoRepositorio.AgendamentoDoCliente;
+import br.com.reservice.agendamento.AgendamentoRepositorio.AgendamentoDoDia;
+import br.com.reservice.agendamento.AgendamentoRepositorio.SituacaoDoAgendamento;
 import br.com.reservice.banco.Banco;
 import br.com.reservice.cliente.Cliente;
 import br.com.reservice.cliente.ClienteRepositorio;
@@ -9,16 +12,23 @@ import br.com.reservice.http.Requisicao;
 import br.com.reservice.http.Resposta;
 import br.com.reservice.servico.Servico;
 import br.com.reservice.servico.ServicoRepositorio;
+import br.com.reservice.sessao.Tokens;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Optional;
 
-/** CT7 criarAgendamento ({@code POST /agendamentos}). Sem login: o cliente é identificado pelo telefone. */
+/**
+ * CT7 criarAgendamento ({@code POST /agendamentos}), sem login: o cliente é identificado pelo telefone.
+ * CT11 listarAgendamentosDoDia ({@code GET /agendamentos}), com o token do profissional.
+ * CT8 listarAgendamentosDoCliente e CT9 cancelarAgendamento, sem login: o telefone identifica o cliente.
+ */
 public class AgendamentoRecurso {
 
     /** Tamanho da coluna {@code cliente.nome}. */
@@ -35,6 +45,15 @@ public class AgendamentoRecurso {
             String status) {
     }
 
+    public record AgendamentosDoDia(LocalDate data, List<AgendamentoDoDia> agendamentos) {
+    }
+
+    public record AgendamentosDoCliente(List<AgendamentoDoCliente> agendamentos) {
+    }
+
+    public record AgendamentoCancelado(int agendamentoId, String status, LocalDateTime atualizadoEm) {
+    }
+
     private record Pedido(int servicoId, LocalDateTime inicio, String telefone, String nome) {
     }
 
@@ -43,14 +62,110 @@ public class AgendamentoRecurso {
     private final HorarioRepositorio horarios;
     private final ClienteRepositorio clientes;
     private final AgendamentoRepositorio agendamentos;
+    private final Tokens tokens;
 
     public AgendamentoRecurso(Banco banco, ServicoRepositorio servicos, HorarioRepositorio horarios,
-                              ClienteRepositorio clientes, AgendamentoRepositorio agendamentos) {
+                              ClienteRepositorio clientes, AgendamentoRepositorio agendamentos, Tokens tokens) {
         this.banco = banco;
         this.servicos = servicos;
         this.horarios = horarios;
         this.clientes = clientes;
         this.agendamentos = agendamentos;
+        this.tokens = tokens;
+    }
+
+    /**
+     * CT11 listarAgendamentosDoDia ({@code GET /agendamentos?data=AAAA-MM-DD}): só os confirmados do
+     * profissional do token, na data pedida, em ordem de início. O token é conferido antes da data.
+     */
+    public Resposta listarAgendamentosDoDia(Requisicao requisicao) throws SQLException {
+        int profissionalId = tokens.profissionalAutenticado(requisicao);
+        LocalDate data = lerData(requisicao.parametroConsulta("data").orElse(null));
+        try (Connection c = banco.conectar()) {
+            return Resposta.ok(new AgendamentosDoDia(data,
+                    agendamentos.listarConfirmadosDoDia(c, profissionalId, data)));
+        }
+    }
+
+    /**
+     * CT8 listarAgendamentosDoCliente ({@code GET /agendamentos/do-cliente?clienteTelefone=...}), sem login:
+     * só os agendamentos confirmados e futuros do cliente desse telefone, em ordem de início.
+     */
+    public Resposta listarAgendamentosDoCliente(Requisicao requisicao) throws SQLException {
+        String telefone = validarTelefone(requisicao.parametroConsulta("clienteTelefone").map(String::trim).orElse(null));
+        try (Connection c = banco.conectar()) {
+            Cliente cliente = clientes.buscarPorTelefone(c, telefone)
+                    .orElseThrow(() -> new ErroApi(404, "CLIENTE_NAO_ENCONTRADO",
+                            "Não encontramos agendamentos para esse telefone."));
+            return Resposta.ok(new AgendamentosDoCliente(
+                    agendamentos.listarFuturosConfirmadosDoCliente(c, cliente.id(), Banco.agora())));
+        }
+    }
+
+    /**
+     * CT9 cancelarAgendamento ({@code PATCH /agendamentos/{agendamentoId}/cancelamento}), sem login:
+     * o {@code clienteTelefone} do corpo precisa ser o do agendamento, senão é como se ele não existisse.
+     */
+    public Resposta cancelarAgendamento(Requisicao requisicao) throws SQLException {
+        int agendamentoId = lerAgendamentoId(requisicao.parametro(0));
+        JsonNode valorTelefone = requisicao.corpoJson().get("clienteTelefone");
+        String telefone = valorTelefone != null && valorTelefone.isTextual() ? valorTelefone.asText().trim() : null;
+
+        try (Connection c = banco.conectar()) {
+            c.setAutoCommit(false);
+            try {
+                AgendamentoCancelado cancelado = cancelar(c, agendamentoId, telefone);
+                c.commit();
+                return Resposta.ok(cancelado);
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    private AgendamentoCancelado cancelar(Connection c, int agendamentoId, String telefone) throws SQLException {
+        SituacaoDoAgendamento situacao = agendamentos.travarParaCancelar(c, agendamentoId)
+                .filter(s -> s.clienteTelefone().equals(telefone))
+                .orElseThrow(AgendamentoRecurso::agendamentoNaoEncontrado);
+        if (situacao.status().equals(Agendamento.CANCELADO)) {
+            throw new ErroApi(409, "AGENDAMENTO_JA_CANCELADO", "Esse agendamento já foi cancelado.");
+        }
+        LocalDateTime agora = Banco.agora();
+        if (!situacao.inicio().isAfter(agora)) {
+            throw new ErroApi(409, "AGENDAMENTO_JA_PASSOU",
+                    "O horário desse agendamento já passou e ele não pode mais ser cancelado.");
+        }
+        agendamentos.cancelar(c, agendamentoId, agora);
+        return new AgendamentoCancelado(agendamentoId, Agendamento.CANCELADO, agora);
+    }
+
+    /** Id do caminho; o que não for um inteiro positivo não pode ser um agendamento existente. */
+    private static int lerAgendamentoId(String valor) {
+        if (valor == null || !valor.matches("[0-9]{1,9}")) {
+            throw agendamentoNaoEncontrado();
+        }
+        return Integer.parseInt(valor);
+    }
+
+    private static ErroApi agendamentoNaoEncontrado() {
+        return new ErroApi(404, "AGENDAMENTO_NAO_ENCONTRADO", "Não encontramos esse agendamento para o seu telefone.");
+    }
+
+    /** Data no formato AAAA-MM-DD e existente no calendário (2026-02-30 é recusada). */
+    private static LocalDate lerData(String valor) {
+        if (valor == null) {
+            throw dataInvalida();
+        }
+        try {
+            return LocalDate.parse(valor.trim());
+        } catch (DateTimeParseException e) {
+            throw dataInvalida();
+        }
+    }
+
+    private static ErroApi dataInvalida() {
+        return new ErroApi(400, "DATA_INVALIDA", "Informe a data no formato AAAA-MM-DD, por exemplo 2026-10-20.");
     }
 
     public Resposta criarAgendamento(Requisicao requisicao) throws SQLException {
@@ -152,7 +267,10 @@ public class AgendamentoRecurso {
     }
 
     private static String lerTelefone(JsonNode valor) {
-        String telefone = valor != null && valor.isTextual() ? valor.asText().trim() : null;
+        return validarTelefone(valor != null && valor.isTextual() ? valor.asText().trim() : null);
+    }
+
+    private static String validarTelefone(String telefone) {
         if (!ClienteRepositorio.telefoneValido(telefone)) {
             throw new ErroApi(400, "TELEFONE_INVALIDO",
                     "Informe o telefone no formato +55 com DDD, por exemplo +5519988887777.");

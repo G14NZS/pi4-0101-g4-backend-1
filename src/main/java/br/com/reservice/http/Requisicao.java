@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +27,34 @@ public class Requisicao {
     /** Parâmetro do caminho na ordem dos grupos da expressão da rota, já decodificado. */
     public String parametro(int indice) {
         return parametros.get(indice);
+    }
+
+    /**
+     * Valor do parâmetro {@code nome} da query string, já decodificado; vazio quando não veio.
+     * Se o parâmetro aparecer mais de uma vez, vale o primeiro.
+     */
+    public Optional<String> parametroConsulta(String nome) {
+        String consulta = troca.getRequestURI().getRawQuery();
+        if (consulta == null) {
+            return Optional.empty();
+        }
+        for (String par : consulta.split("&")) {
+            int igual = par.indexOf('=');
+            String chave = igual < 0 ? par : par.substring(0, igual);
+            if (decodificar(chave).equals(nome)) {
+                return Optional.of(igual < 0 ? "" : decodificar(par.substring(igual + 1)));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String decodificar(String texto) {
+        try {
+            return URLDecoder.decode(texto, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            // Escape malformado (ex.: "%zz"): segue com o texto cru, e a validação do campo recusa.
+            return texto;
+        }
     }
 
     /** Corpo como objeto JSON; qualquer outra coisa é {@code DADOS_INVALIDOS}. */

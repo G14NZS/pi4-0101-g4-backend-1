@@ -10,8 +10,10 @@ JWT (HS256, com `exp`) e bcrypt. Os contratos estão em [`docs/contratos/`](docs
 |---|---|---|
 | H02.1 | CT1 abrirSessao, CT14 profissional | `POST /sessoes` |
 | H02.2 | CT2 cadastrarServico, CT3 listarServicos, CT15 servico | `POST /servicos`, `GET /profissionais/{slug}/servicos` |
-| H04.1 | CT7 criarAgendamento, CT16 horario_atendimento, CT17 cliente, CT18 agendamento | `POST /agendamentos` |
 | H03.1 | CT4 definirHorarios | `PUT /horarios` (substitui a grade semanal inteira) |
+| H04.1 | CT7 criarAgendamento, CT16 horario_atendimento, CT17 cliente, CT18 agendamento | `POST /agendamentos` |
+| H06.1 | CT11 listarAgendamentosDoDia | `GET /agendamentos?data=AAAA-MM-DD` |
+| H07.1 | CT8 listarAgendamentosDoCliente, CT9 cancelarAgendamento | `GET /agendamentos/do-cliente`, `PATCH /agendamentos/{id}/cancelamento` |
 
 Todo erro volta como `{ "erro": CODIGO, "mensagem": texto }`. O CORS libera as origens de `CORS_ORIGENS`
 (padrão `http://localhost:5175`) com os cabeçalhos `Authorization` e `Content-Type`.
@@ -53,6 +55,10 @@ Invoke-RestMethod -Method Post http://localhost:8080/servicos -ContentType 'appl
 Invoke-RestMethod http://localhost:8080/profissionais/ana-unhas/servicos | ConvertTo-Json -Depth 5
 # CT7 - criar agendamento (sem login; clienteNome só é exigido no primeiro agendamento do telefone)
 Invoke-RestMethod -Method Post http://localhost:8080/agendamentos -ContentType 'application/json' -Body '{"servicoId":1,"inicio":"2026-11-03T14:00:00","clienteTelefone":"+5519988887777","clienteNome":"Maria Souza"}'
+# CT8 - agendamentos futuros do cliente (o + do telefone vai codificado como %2B na URL)
+Invoke-RestMethod 'http://localhost:8080/agendamentos/do-cliente?clienteTelefone=%2B5519988887777' | ConvertTo-Json -Depth 5
+# CT9 - cancelar (o telefone precisa ser o do agendamento)
+Invoke-RestMethod -Method Patch http://localhost:8080/agendamentos/1/cancelamento -ContentType 'application/json' -Body '{"clienteTelefone":"+5519988887777"}'
 # Erros: curl.exe mostra o status e o corpo
 curl.exe -i -X POST http://localhost:8080/servicos -H "Content-Type: application/json" -d '{}'
 ```

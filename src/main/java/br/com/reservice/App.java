@@ -55,7 +55,7 @@ public final class App {
         HorarioRepositorio horarios = new HorarioRepositorio();
         AgendamentoRepositorio agendamentos = new AgendamentoRepositorio();
         AgendamentoRecurso agendamentoRecurso = new AgendamentoRecurso(banco, servicos, horarios,
-                new ClienteRepositorio(), agendamentos);
+                new ClienteRepositorio(), agendamentos, tokens);
         HorarioRecurso horarioRecurso = new HorarioRecurso(banco, horarios, agendamentos, tokens);
 
         return new Servidor(config.corsOrigens())
@@ -63,6 +63,9 @@ public final class App {
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
                 .rota("PUT", "/horarios", horarioRecurso::definirHorarios)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
-                .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento);
+                .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento)
+                .rota("GET", "/agendamentos", agendamentoRecurso::listarAgendamentosDoDia)
+                .rota("GET", "/agendamentos/do-cliente", agendamentoRecurso::listarAgendamentosDoCliente)
+                .rota("PATCH", "/agendamentos/([^/]+)/cancelamento", agendamentoRecurso::cancelarAgendamento);
     }
 }
