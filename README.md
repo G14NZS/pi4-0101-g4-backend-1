@@ -11,6 +11,7 @@ JWT (HS256, com `exp`) e bcrypt. Os contratos estão em [`docs/contratos/`](docs
 | H02.1 | CT1 abrirSessao, CT14 profissional | `POST /sessoes` |
 | H02.2 | CT2 cadastrarServico, CT3 listarServicos, CT15 servico | `POST /servicos`, `GET /profissionais/{slug}/servicos` |
 | H03.1 | CT4 definirHorarios | `PUT /horarios` (substitui a grade semanal inteira) |
+| H03.2 | CT5 listarHorariosLivres | `GET /profissionais/{slug}/horarios-livres?servicoId=&data=` (sem login) |
 | H04.1 | CT7 criarAgendamento, CT16 horario_atendimento, CT17 cliente, CT18 agendamento | `POST /agendamentos` |
 | H06.1 | CT11 listarAgendamentosDoDia | `GET /agendamentos?data=AAAA-MM-DD` |
 | H07.1 | CT8 listarAgendamentosDoCliente, CT9 cancelarAgendamento | `GET /agendamentos/do-cliente`, `PATCH /agendamentos/{id}/cancelamento` |
