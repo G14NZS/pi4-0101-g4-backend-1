@@ -61,7 +61,36 @@ public class AgendamentoRepositorio {
             }
         }
     }
+    public boolean existeConflitoIgnorandoAgendamento(
+            Connection c,
+            int profissionalId,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            int agendamentoId) throws SQLException {
 
+        String sql = """
+                SELECT 1
+                FROM agendamento
+                WHERE profissional_id = ?
+                AND status = ?
+                AND id <> ?
+                AND inicio < ?
+                AND fim > ?
+                LIMIT 1
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, profissionalId);
+            ps.setString(2, Agendamento.CONFIRMADO);
+            ps.setInt(3, agendamentoId);
+            ps.setObject(4, fim);
+            ps.setObject(5, inicio);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
     public Agendamento inserir(
             Connection c,
             int profissionalId,
@@ -239,6 +268,36 @@ public class AgendamentoRepositorio {
             ps.setString(1, "cancelado");
             ps.setObject(2, agora);
             ps.setInt(3, agendamentoId);
+            ps.executeUpdate();
+        }
+
+        return agora;
+    }
+    public LocalDateTime remarcar(
+            Connection c,
+            int agendamentoId,
+            LocalDateTime inicio,
+            LocalDateTime fim) throws SQLException {
+
+        LocalDateTime agora = Banco.agora();
+
+        String sql = """
+                UPDATE agendamento
+                SET inicio = ?,
+                    fim = ?,
+                    lembrete_status = ?,
+                    lembrete_registrado_em = NULL,
+                    atualizado_em = ?
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, inicio);
+            ps.setObject(2, fim);
+            ps.setString(3, Agendamento.LEMBRETE_PENDENTE);
+            ps.setObject(4, agora);
+            ps.setInt(5, agendamentoId);
+
             ps.executeUpdate();
         }
 

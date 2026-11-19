@@ -43,6 +43,13 @@ public class AgendamentoRecurso {
             String status,
             LocalDateTime atualizadoEm) {
     }
+    public record AgendamentoRemarcado(
+        int agendamentoId,
+        LocalDateTime inicio,
+        LocalDateTime fim,
+        String status,
+        LocalDateTime atualizadoEm) {
+}
 
     private record Pedido(
             int servicoId,
@@ -189,6 +196,120 @@ public class AgendamentoRecurso {
             }
         }
     }
+    public Resposta remarcarAgendamento(
+        Requisicao requisicao) throws SQLException {
+
+    int clienteId =
+            tokens.clienteAutenticado(requisicao);
+
+    int agendamentoId =
+            lerAgendamentoId(
+                    requisicao.parametro(0));
+
+    JsonNode corpo =
+            requisicao.corpoJson();
+
+    LocalDateTime novoInicio =
+            lerInicio(corpo.get("inicio"));
+
+    try (Connection c = banco.conectar()) {
+
+        c.setTransactionIsolation(
+                Connection.TRANSACTION_READ_COMMITTED);
+
+        c.setAutoCommit(false);
+
+        try {
+            Agendamento agendamento =
+                    agendamentos
+                            .buscarPorIdEClienteParaAtualizar(
+                                    c,
+                                    agendamentoId,
+                                    clienteId)
+                            .orElseThrow(() ->
+                                    new ErroApi(
+                                            404,
+                                            "AGENDAMENTO_NAO_ENCONTRADO",
+                                            "Não encontramos esse agendamento."));
+
+            if (!Agendamento.CONFIRMADO.equals(
+                    agendamento.status())) {
+
+                throw new ErroApi(
+                        409,
+                        "AGENDAMENTO_JA_CANCELADO",
+                        "Esse agendamento já foi cancelado.");
+            }
+
+            if (!agendamento.inicio()
+                    .isAfter(Banco.agora())) {
+
+                throw new ErroApi(
+                        409,
+                        "AGENDAMENTO_JA_PASSOU",
+                        "Esse agendamento já aconteceu ou o horário já passou.");
+            }
+
+            Servico servico =
+                    servicos.buscarPorId(
+                                    c,
+                                    agendamento.servicoId())
+                            .orElseThrow(() ->
+                                    new ErroApi(
+                                            404,
+                                            "SERVICO_NAO_ENCONTRADO",
+                                            "Não encontramos esse serviço."));
+
+            LocalDateTime novoFim =
+                    novoInicio.plusMinutes(
+                            servico.duracaoMinutos());
+
+            agendamentos.travarAgendaDoProfissional(
+                    c,
+                    agendamento.profissionalId());
+
+            if (!cabeNaGrade(
+                    c,
+                    agendamento.profissionalId(),
+                    novoInicio,
+                    novoFim)
+                    || agendamentos
+                    .existeConflitoIgnorandoAgendamento(
+                            c,
+                            agendamento.profissionalId(),
+                            novoInicio,
+                            novoFim,
+                            agendamentoId)) {
+
+                throw new ErroApi(
+                        409,
+                        "HORARIO_INDISPONIVEL",
+                        "Esse horário não está mais disponível. Escolha outro.");
+            }
+
+            LocalDateTime atualizadoEm =
+                    agendamentos.remarcar(
+                            c,
+                            agendamentoId,
+                            novoInicio,
+                            novoFim);
+
+            c.commit();
+
+            return Resposta.ok(
+                    new AgendamentoRemarcado(
+                            agendamentoId,
+                            novoInicio,
+                            novoFim,
+                            Agendamento.CONFIRMADO,
+                            atualizadoEm));
+
+        } catch (SQLException | RuntimeException e) {
+            c.rollback();
+            throw e;
+        }
+    }
+}
 
     private AgendamentoCriado gravar(
             Connection c,
