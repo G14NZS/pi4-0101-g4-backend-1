@@ -16,8 +16,11 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 
-/** CT7 criarAgendamento ({@code POST /agendamentos}). Requer cliente autenticado. */
+/**
+ * Operações de agendamento do cliente.
+ */
 public class AgendamentoRecurso {
 
     public record AgendamentoCriado(
@@ -29,6 +32,16 @@ public class AgendamentoRecurso {
             int clienteId,
             String clienteNome,
             String status) {
+    }
+
+    public record AgendamentosDoCliente(
+            List<AgendamentoRepositorio.ItemAgendamentoCliente> agendamentos) {
+    }
+
+    public record AgendamentoCancelado(
+            int agendamentoId,
+            String status,
+            LocalDateTime atualizadoEm) {
     }
 
     private record Pedido(
@@ -59,11 +72,14 @@ public class AgendamentoRecurso {
         this.tokens = tokens;
     }
 
-    public Resposta criarAgendamento(Requisicao requisicao) throws SQLException {
+    public Resposta criarAgendamento(
+            Requisicao requisicao) throws SQLException {
 
-        int clienteId = tokens.clienteAutenticado(requisicao);
+        int clienteId =
+                tokens.clienteAutenticado(requisicao);
 
-        JsonNode corpo = requisicao.corpoJson();
+        JsonNode corpo =
+                requisicao.corpoJson();
 
         Pedido pedido = new Pedido(
                 lerServicoId(corpo.get("servicoId")),
@@ -71,7 +87,9 @@ public class AgendamentoRecurso {
 
         try (Connection c = banco.conectar()) {
 
-            c.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            c.setTransactionIsolation(
+                    Connection.TRANSACTION_READ_COMMITTED);
+
             c.setAutoCommit(false);
 
             try {
@@ -89,28 +107,121 @@ public class AgendamentoRecurso {
         }
     }
 
+    public Resposta listarDoCliente(
+            Requisicao requisicao) throws SQLException {
+
+        int clienteId =
+                tokens.clienteAutenticado(requisicao);
+
+        try (Connection c = banco.conectar()) {
+
+            List<AgendamentoRepositorio.ItemAgendamentoCliente> itens =
+                    agendamentos.listarFuturosDoCliente(
+                            c,
+                            clienteId);
+
+            return Resposta.ok(
+                    new AgendamentosDoCliente(itens));
+        }
+    }
+
+    public Resposta cancelarAgendamento(
+            Requisicao requisicao) throws SQLException {
+
+        int clienteId =
+                tokens.clienteAutenticado(requisicao);
+
+        int agendamentoId =
+                lerAgendamentoId(
+                        requisicao.parametro(0));
+
+        try (Connection c = banco.conectar()) {
+
+            c.setAutoCommit(false);
+
+            try {
+                Agendamento agendamento =
+                        agendamentos
+                                .buscarPorIdEClienteParaAtualizar(
+                                        c,
+                                        agendamentoId,
+                                        clienteId)
+                                .orElseThrow(() ->
+                                        new ErroApi(
+                                                404,
+                                                "AGENDAMENTO_NAO_ENCONTRADO",
+                                                "Não encontramos esse agendamento."));
+
+                if (!Agendamento.CONFIRMADO.equals(
+                        agendamento.status())) {
+
+                    throw new ErroApi(
+                            409,
+                            "AGENDAMENTO_JA_CANCELADO",
+                            "Esse agendamento já foi cancelado.");
+                }
+
+                if (!agendamento.inicio()
+                        .isAfter(Banco.agora())) {
+
+                    throw new ErroApi(
+                            409,
+                            "AGENDAMENTO_JA_PASSOU",
+                            "Esse agendamento já aconteceu ou o horário já passou.");
+                }
+
+                LocalDateTime atualizadoEm =
+                        agendamentos.cancelar(
+                                c,
+                                agendamentoId);
+
+                c.commit();
+
+                return Resposta.ok(
+                        new AgendamentoCancelado(
+                                agendamentoId,
+                                "cancelado",
+                                atualizadoEm));
+
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
     private AgendamentoCriado gravar(
             Connection c,
             Pedido pedido,
             int clienteId) throws SQLException {
 
-        Servico servico = servicos.buscarPorId(c, pedido.servicoId())
-                .orElseThrow(() ->
-                        new ErroApi(
-                                404,
-                                "SERVICO_NAO_ENCONTRADO",
-                                "Não encontramos esse serviço."));
+        Servico servico =
+                servicos.buscarPorId(
+                                c,
+                                pedido.servicoId())
+                        .orElseThrow(() ->
+                                new ErroApi(
+                                        404,
+                                        "SERVICO_NAO_ENCONTRADO",
+                                        "Não encontramos esse serviço."));
 
-        Cliente cliente = clientes.buscarPorId(c, clienteId)
-                .orElseThrow(ErroApi::naoAutenticado);
+        Cliente cliente =
+                clientes.buscarPorId(
+                                c,
+                                clienteId)
+                        .orElseThrow(
+                                ErroApi::naoAutenticado);
 
         agendamentos.travarAgendaDoProfissional(
                 c,
                 servico.profissionalId());
 
-        LocalDateTime inicio = pedido.inicio();
+        LocalDateTime inicio =
+                pedido.inicio();
+
         LocalDateTime fim =
-                inicio.plusMinutes(servico.duracaoMinutos());
+                inicio.plusMinutes(
+                        servico.duracaoMinutos());
 
         if (!cabeNaGrade(
                 c,
@@ -129,13 +240,14 @@ public class AgendamentoRecurso {
                     "Esse horário não está mais disponível. Escolha outro.");
         }
 
-        Agendamento a = agendamentos.inserir(
-                c,
-                servico.profissionalId(),
-                servico.id(),
-                cliente.id(),
-                inicio,
-                fim);
+        Agendamento a =
+                agendamentos.inserir(
+                        c,
+                        servico.profissionalId(),
+                        servico.id(),
+                        cliente.id(),
+                        inicio,
+                        fim);
 
         return new AgendamentoCriado(
                 a.id(),
@@ -154,7 +266,9 @@ public class AgendamentoRecurso {
             LocalDateTime inicio,
             LocalDateTime fim) throws SQLException {
 
-        if (!fim.toLocalDate().equals(inicio.toLocalDate())) {
+        if (!fim.toLocalDate()
+                .equals(inicio.toLocalDate())) {
+
             return false;
         }
 
@@ -170,7 +284,26 @@ public class AgendamentoRecurso {
                                 fim.toLocalTime()));
     }
 
-    private static int lerServicoId(JsonNode valor) {
+    private static int lerAgendamentoId(
+            String valor) {
+
+        try {
+            int id = Integer.parseInt(valor);
+
+            if (id <= 0) {
+                throw new NumberFormatException();
+            }
+
+            return id;
+
+        } catch (NumberFormatException e) {
+            throw ErroApi.dadosInvalidos(
+                    "Agendamento inválido.");
+        }
+    }
+
+    private static int lerServicoId(
+            JsonNode valor) {
 
         if (valor == null
                 || !valor.isIntegralNumber()
@@ -183,22 +316,27 @@ public class AgendamentoRecurso {
         return valor.asInt();
     }
 
-    private static LocalDateTime lerInicio(JsonNode valor) {
+    private static LocalDateTime lerInicio(
+            JsonNode valor) {
 
-        ErroApi invalida = new ErroApi(
-                400,
-                "DATA_INVALIDA",
-                "Escolha uma data e um horário válidos e futuros.");
+        ErroApi invalida =
+                new ErroApi(
+                        400,
+                        "DATA_INVALIDA",
+                        "Escolha uma data e um horário válidos e futuros.");
 
-        if (valor == null || !valor.isTextual()) {
+        if (valor == null
+                || !valor.isTextual()) {
+
             throw invalida;
         }
 
         LocalDateTime inicio;
 
         try {
-            inicio = LocalDateTime.parse(
-                    valor.asText().trim());
+            inicio =
+                    LocalDateTime.parse(
+                            valor.asText().trim());
 
         } catch (DateTimeParseException e) {
             throw invalida;

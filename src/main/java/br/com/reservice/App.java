@@ -93,6 +93,8 @@ public final class App {
                 .rota("POST", "/servicos", servicoRecurso::cadastrarServico)
                 .rota("GET", "/profissionais/([^/]+)/servicos", servicoRecurso::listarServicos)
                 .rota("POST", "/agendamentos", agendamentoRecurso::criarAgendamento)
+                .rota("GET", "/agendamentos/do-cliente", agendamentoRecurso::listarDoCliente)
+                .rota("PATCH", "/agendamentos/([^/]+)/cancelamento", agendamentoRecurso::cancelarAgendamento)
                 .rota("POST", "/clientes", clienteRecurso::cadastrar)
                 .rota("POST", "/clientes/sessoes", clienteRecurso::entrar)
                 .rota("POST", "/clientes/recuperacao-senha", recuperacaoSenhaRecurso::solicitar)
