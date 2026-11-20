@@ -74,10 +74,12 @@ class TabelasTest extends TesteIntegracao {
 
     @Test
     void ct17TelefoneRepetidoEhRecusado() throws Exception {
-        executar("INSERT INTO cliente (nome, telefone, criado_em) VALUES ('Maria', '+5519988887777', NOW())");
+        executar("INSERT INTO cliente (nome, telefone, senha_hash, criado_em) " +
+        "VALUES ('Maria', '+5519988887777', 'hash-de-teste', NOW())");
 
         var e = assertThrows(SQLIntegrityConstraintViolationException.class,
-                () -> executar("INSERT INTO cliente (nome, telefone, criado_em) VALUES ('Outra', '+5519988887777', NOW())"));
+                () -> executar("INSERT INTO cliente (nome, telefone, senha_hash, criado_em) " +
+                        "VALUES ('Outra', '+5519988887777', 'hash-de-teste', NOW())"));
         assertEquals(Banco.ERRO_VALOR_DUPLICADO, e.getErrorCode());
     }
 
@@ -109,8 +111,8 @@ class TabelasTest extends TesteIntegracao {
     private String idsValidos() throws Exception {
         int ana = criarProfissional("Ana", "ana@exemplo.com", "x", "+5519999990000", "ana-unhas");
         int servico = new ServicoRepositorio(banco).inserir(ana, "Manicure", 45, new BigDecimal("35.00")).id();
-        executar("INSERT INTO cliente (nome, telefone, criado_em) VALUES ('Maria', '+5519988887777', NOW())");
-        try (Connection c = banco.conectar(); Statement st = c.createStatement();
+        executar("INSERT INTO cliente (nome, telefone, senha_hash, criado_em) " +
+                "VALUES ('Maria', '+5519988887777', 'hash-de-teste', NOW())");        try (Connection c = banco.conectar(); Statement st = c.createStatement();
              ResultSet rs = st.executeQuery("SELECT id FROM cliente")) {
             rs.next();
             return ana + ", " + servico + ", " + rs.getInt(1);

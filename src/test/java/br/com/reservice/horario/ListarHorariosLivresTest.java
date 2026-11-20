@@ -77,36 +77,78 @@ class ListarHorariosLivresTest extends TesteIntegracao {
         }
     }
 
-    private void inserirAgendamento(int profissionalId, int servico, LocalDateTime inicio, LocalDateTime fim,
-                                    String status) throws Exception {
-        try (Connection c = banco.conectar()) {
-            int clienteId;
-            try (PreparedStatement ps = c.prepareStatement(
-                    "INSERT INTO cliente (nome, telefone, criado_em) VALUES (?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, "Cliente");
-                ps.setString(2, "+55199000" + String.format("%05d", telefones.incrementAndGet()));
-                ps.setObject(3, Banco.agora());
-                ps.executeUpdate();
-                try (ResultSet chaves = ps.getGeneratedKeys()) {
-                    chaves.next();
-                    clienteId = chaves.getInt(1);
-                }
-            }
-            String sql = "INSERT INTO agendamento (profissional_id, servico_id, cliente_id, inicio, fim, status,"
-                    + " lembrete_status, criado_em, atualizado_em) VALUES (?, ?, ?, ?, ?, ?, 'pendente', ?, ?)";
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setInt(1, profissionalId);
-                ps.setInt(2, servico);
-                ps.setInt(3, clienteId);
-                ps.setObject(4, inicio);
-                ps.setObject(5, fim);
-                ps.setString(6, status);
-                ps.setObject(7, Banco.agora());
-                ps.setObject(8, Banco.agora());
-                ps.executeUpdate();
+    private void inserirAgendamento(
+        int profissionalId,
+        int servico,
+        LocalDateTime inicio,
+        LocalDateTime fim,
+        String status) throws Exception {
+
+    try (Connection c = banco.conectar()) {
+
+        int clienteId;
+
+        try (PreparedStatement ps = c.prepareStatement(
+                """
+                INSERT INTO cliente
+                    (nome, telefone, senha_hash, criado_em)
+                VALUES (?, ?, ?, ?)
+                """,
+                Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setString(1, "Cliente");
+            ps.setString(
+                    2,
+                    "+55199000"
+                            + String.format(
+                                    "%05d",
+                                    telefones.incrementAndGet()));
+            ps.setString(3, "hash-de-teste");
+            ps.setObject(4, Banco.agora());
+
+            ps.executeUpdate();
+
+            try (ResultSet chaves =
+                         ps.getGeneratedKeys()) {
+
+                chaves.next();
+                clienteId =
+                        chaves.getInt(1);
             }
         }
+
+        String sql = """
+                INSERT INTO agendamento
+                    (
+                        profissional_id,
+                        servico_id,
+                        cliente_id,
+                        inicio,
+                        fim,
+                        status,
+                        lembrete_status,
+                        criado_em,
+                        atualizado_em
+                    )
+                VALUES (?, ?, ?, ?, ?, ?, 'pendente', ?, ?)
+                """;
+
+        try (PreparedStatement ps =
+                     c.prepareStatement(sql)) {
+
+            ps.setInt(1, profissionalId);
+            ps.setInt(2, servico);
+            ps.setInt(3, clienteId);
+            ps.setObject(4, inicio);
+            ps.setObject(5, fim);
+            ps.setString(6, status);
+            ps.setObject(7, Banco.agora());
+            ps.setObject(8, Banco.agora());
+
+            ps.executeUpdate();
+        }
     }
+}
 
     @Test
     void listaOsHorariosNoFormatoDoContrato() throws Exception {

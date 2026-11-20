@@ -51,8 +51,8 @@ class ListarAgendamentosDoDiaTest extends TesteIntegracao {
         escovaId = servicos.inserir(anaId, "Escova", 30, new BigDecimal("50.00")).id();
         pedicureDaBiaId = servicos.inserir(biaId, "Pedicure", 40, new BigDecimal("40.00")).id();
         try (Connection c = banco.conectar()) {
-            mariaId = clientes.inserir(c, "Maria Souza", MARIA).id();
-            joanaId = clientes.inserir(c, "Joana Lima", JOANA).id();
+            mariaId = clientes.inserir(c, "Maria Souza", MARIA, "hash-de-teste").id();
+            joanaId = clientes.inserir(c, "Joana Lima", JOANA, "hash-de-teste").id();
         }
         token = json(post("/sessoes", "{\"email\":\"ana@exemplo.com\",\"senha\":\"segredo123\"}", null))
                 .get("token").asText();

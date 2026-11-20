@@ -70,6 +70,7 @@ public abstract class TesteIntegracao {
     @BeforeEach
     void limparTabelas() throws Exception {
         try (Connection c = banco.conectar(); Statement st = c.createStatement()) {
+            st.executeUpdate("DELETE FROM recuperacao_senha");
             st.executeUpdate("DELETE FROM agendamento");
             st.executeUpdate("DELETE FROM cliente");
             st.executeUpdate("DELETE FROM horario_atendimento");
@@ -81,6 +82,7 @@ public abstract class TesteIntegracao {
     private void recriarEsquema() throws Exception {
         String schema = Files.readString(Path.of("db", "schema.sql"));
         try (Connection c = banco.conectar(); Statement st = c.createStatement()) {
+            st.executeUpdate("DROP TABLE IF EXISTS recuperacao_senha");
             st.executeUpdate("DROP TABLE IF EXISTS agendamento");
             st.executeUpdate("DROP TABLE IF EXISTS cliente");
             st.executeUpdate("DROP TABLE IF EXISTS horario_atendimento");
@@ -123,10 +125,24 @@ public abstract class TesteIntegracao {
     }
 
     protected HttpResponse<String> patch(String caminho, String corpoJson) throws Exception {
-        return enviar(HttpRequest.newBuilder(uri(caminho))
+        return patch(caminho, corpoJson, null);
+    }
+
+    protected HttpResponse<String> patch(
+            String caminho,
+            String corpoJson,
+            String token) throws Exception {
+
+        HttpRequest.Builder b = HttpRequest.newBuilder(uri(caminho))
                 .method("PATCH", HttpRequest.BodyPublishers.ofString(corpoJson))
                 .header("Content-Type", "application/json")
-                .header("Origin", ORIGEM_FRONTEND));
+                .header("Origin", ORIGEM_FRONTEND);
+
+        if (token != null) {
+            b.header("Authorization", "Bearer " + token);
+        }
+
+        return enviar(b);
     }
 
     protected HttpResponse<String> enviar(HttpRequest.Builder pedido) throws Exception {
@@ -149,5 +165,40 @@ public abstract class TesteIntegracao {
         assertEquals(true, corpo.path("mensagem").isTextual() && !corpo.path("mensagem").asText().isBlank(),
                 "mensagem vazia: " + resposta.body());
         assertEquals(2, corpo.size(), "corpo de erro deve ter só erro e mensagem: " + resposta.body());
+    }
+    protected record ClienteLogado(int id, String token) {
+    }
+
+    protected ClienteLogado criarClienteLogado(
+            String nome,
+            String telefone,
+            String senha) throws Exception {
+
+        String cadastro = Json.MAPPER.createObjectNode()
+                .put("nome", nome)
+                .put("telefone", telefone)
+                .put("senha", senha)
+                .toString();
+
+        HttpResponse<String> respostaCadastro =
+                post("/clientes", cadastro, null);
+
+        assertEquals(201, respostaCadastro.statusCode(), respostaCadastro.body());
+
+        String login = Json.MAPPER.createObjectNode()
+                .put("telefone", telefone)
+                .put("senha", senha)
+                .toString();
+
+        HttpResponse<String> respostaLogin =
+                post("/clientes/sessoes", login, null);
+
+        assertEquals(200, respostaLogin.statusCode(), respostaLogin.body());
+
+        JsonNode corpo = json(respostaLogin);
+
+        return new ClienteLogado(
+                corpo.get("clienteId").asInt(),
+                corpo.get("token").asText());
     }
 }
