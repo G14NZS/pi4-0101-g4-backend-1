@@ -20,12 +20,14 @@ public class AgendamentoRepositorio {
      * Usado pela H05 na área autenticada do cliente.
      */
     public record ItemAgendamentoCliente(
-            int agendamentoId,
-            String servicoNome,
-            String profissionalNome,
-            LocalDateTime inicio,
-            LocalDateTime fim,
-            String status) {
+        int agendamentoId,
+        int servicoId,
+        String servicoNome,
+        String profissionalNome,
+        String profissionalSlug,
+        LocalDateTime inicio,
+        LocalDateTime fim,
+        String status) {
     }
 
     /*
@@ -352,12 +354,14 @@ public class AgendamentoRepositorio {
 
         String sql = """
                 SELECT
-                    a.id AS agendamento_id,
-                    s.nome AS servico_nome,
-                    p.nome AS profissional_nome,
-                    a.inicio,
-                    a.fim,
-                    a.status
+                a.id AS agendamento_id,
+                a.servico_id,
+                s.nome AS servico_nome,
+                p.nome AS profissional_nome,
+                p.slug AS profissional_slug,
+                a.inicio,
+                a.fim,
+                a.status
                 FROM agendamento a
                 JOIN servico s
                   ON s.id = a.servico_id
@@ -388,22 +392,20 @@ public class AgendamentoRepositorio {
 
                 while (rs.next()) {
 
-                    itens.add(
-                            new ItemAgendamentoCliente(
-                                    rs.getInt(
-                                            "agendamento_id"),
-                                    rs.getString(
-                                            "servico_nome"),
-                                    rs.getString(
-                                            "profissional_nome"),
-                                    rs.getObject(
-                                            "inicio",
-                                            LocalDateTime.class),
-                                    rs.getObject(
-                                            "fim",
-                                            LocalDateTime.class),
-                                    rs.getString(
-                                            "status")));
+        itens.add(
+                new ItemAgendamentoCliente(
+                        rs.getInt("agendamento_id"),
+                        rs.getInt("servico_id"),
+                        rs.getString("servico_nome"),
+                        rs.getString("profissional_nome"),
+                        rs.getString("profissional_slug"),
+                        rs.getObject(
+                                "inicio",
+                                LocalDateTime.class),
+                        rs.getObject(
+                                "fim",
+                                LocalDateTime.class),
+                        rs.getString("status")));
                 }
             }
         }
