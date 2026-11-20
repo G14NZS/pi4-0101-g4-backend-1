@@ -2,6 +2,7 @@ package br.com.reservice;
 
 import br.com.reservice.agendamento.AgendamentoRecurso;
 import br.com.reservice.agendamento.AgendamentoRepositorio;
+import br.com.reservice.agendamento.LembreteRecurso;
 import br.com.reservice.banco.Banco;
 import br.com.reservice.cliente.ClienteRepositorio;
 import br.com.reservice.horario.HorarioLivreRecurso;
@@ -39,9 +40,13 @@ public final class App {
         LOG.info("Socket TCP do Backend 1 ouvindo na porta " + socket.porta());
     }
 
-    /** Socket TCP usado pelo Backend 2. As operações CT12 e CT13 serão registradas aqui (H06). */
+    /** Socket TCP usado pelo Backend 2: CT12 listarLembretesPendentes e CT13 registrarLembrete (H06). */
     public static ServidorSocket montarSocket(Config config) {
-        return new ServidorSocket(config.chaveInterna());
+        Banco banco = new Banco(config.bancoUrl(), config.bancoUsuario(), config.bancoSenha());
+        LembreteRecurso lembretes = new LembreteRecurso(banco, new AgendamentoRepositorio());
+        return new ServidorSocket(config.chaveInterna())
+                .operacao("listarLembretesPendentes", lembretes::listarLembretesPendentes)
+                .operacao("registrarLembrete", lembretes::registrarLembrete);
     }
 
     /** Liga repositórios, recursos e rotas. O relógio é usado para emitir e conferir tokens. */
