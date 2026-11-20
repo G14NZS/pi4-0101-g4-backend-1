@@ -262,20 +262,16 @@ class ListarAgendamentosDoClienteTest extends TesteIntegracao {
                         .asInt());
 
         JsonNode primeiro =
-                lista.get(0);
+        lista.get(0);
 
-        /*
-         * Estrutura atual da H05:
-         * agendamentoId
-         * servicoNome
-         * profissionalNome
-         * inicio
-         * fim
-         * status
-         */
         assertEquals(
-                6,
+                8,
                 primeiro.size());
+
+        assertEquals(
+                manicureId,
+                primeiro.get("servicoId")
+                        .asInt());
 
         assertEquals(
                 "Manicure simples",
@@ -285,6 +281,11 @@ class ListarAgendamentosDoClienteTest extends TesteIntegracao {
         assertEquals(
                 "Ana Beatriz Costa",
                 primeiro.get("profissionalNome")
+                        .asText());
+
+        assertEquals(
+                "ana-unhas",
+                primeiro.get("profissionalSlug")
                         .asText());
 
         assertEquals(
@@ -308,6 +309,15 @@ class ListarAgendamentosDoClienteTest extends TesteIntegracao {
                 lista.get(1);
 
         assertEquals(
+                8,
+                segundo.size());
+
+        assertEquals(
+                escovaDaBiaId,
+                segundo.get("servicoId")
+                        .asInt());
+
+        assertEquals(
                 "Escova",
                 segundo.get("servicoNome")
                         .asText());
@@ -315,6 +325,11 @@ class ListarAgendamentosDoClienteTest extends TesteIntegracao {
         assertEquals(
                 "Bia Lima",
                 segundo.get("profissionalNome")
+                        .asText());
+
+        assertEquals(
+                "bia-cabelos",
+                segundo.get("profissionalSlug")
                         .asText());
     }
 

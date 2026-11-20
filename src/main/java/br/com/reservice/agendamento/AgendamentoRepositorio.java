@@ -20,12 +20,14 @@ public class AgendamentoRepositorio {
      * Usado pela H05 na área autenticada do cliente.
      */
     public record ItemAgendamentoCliente(
-            int agendamentoId,
-            String servicoNome,
-            String profissionalNome,
-            LocalDateTime inicio,
-            LocalDateTime fim,
-            String status) {
+        int agendamentoId,
+        int servicoId,
+        String servicoNome,
+        String profissionalNome,
+        String profissionalSlug,
+        LocalDateTime inicio,
+        LocalDateTime fim,
+        String status) {
     }
 
     /*
@@ -102,6 +104,37 @@ public class AgendamentoRepositorio {
             ps.setString(2, Agendamento.CONFIRMADO);
             ps.setObject(3, fim);
             ps.setObject(4, inicio);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+    public boolean existeConflitoIgnorandoAgendamento(
+            Connection c,
+            int profissionalId,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            int agendamentoId) throws SQLException {
+
+        String sql = """
+                SELECT 1
+                FROM agendamento
+                WHERE profissional_id = ?
+                  AND status = ?
+                  AND id <> ?
+                  AND inicio < ?
+                  AND fim > ?
+                LIMIT 1
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, profissionalId);
+            ps.setString(2, Agendamento.CONFIRMADO);
+            ps.setInt(3, agendamentoId);
+            ps.setObject(4, fim);
+            ps.setObject(5, inicio);
 
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
@@ -222,12 +255,9 @@ public class AgendamentoRepositorio {
                             new AgendamentoDoCliente(
                                     rs.getInt("id"),
                                     rs.getInt("servico_id"),
-                                    rs.getString(
-                                            "servico_nome"),
-                                    rs.getString(
-                                            "profissional_nome"),
-                                    rs.getString(
-                                            "profissional_slug"),
+                                    rs.getString("servico_nome"),
+                                    rs.getString("profissional_nome"),
+                                    rs.getString("profissional_slug"),
                                     rs.getObject(
                                             "inicio",
                                             LocalDateTime.class),
@@ -324,12 +354,14 @@ public class AgendamentoRepositorio {
 
         String sql = """
                 SELECT
-                    a.id AS agendamento_id,
-                    s.nome AS servico_nome,
-                    p.nome AS profissional_nome,
-                    a.inicio,
-                    a.fim,
-                    a.status
+                a.id AS agendamento_id,
+                a.servico_id,
+                s.nome AS servico_nome,
+                p.nome AS profissional_nome,
+                p.slug AS profissional_slug,
+                a.inicio,
+                a.fim,
+                a.status
                 FROM agendamento a
                 JOIN servico s
                   ON s.id = a.servico_id
@@ -360,22 +392,20 @@ public class AgendamentoRepositorio {
 
                 while (rs.next()) {
 
-                    itens.add(
-                            new ItemAgendamentoCliente(
-                                    rs.getInt(
-                                            "agendamento_id"),
-                                    rs.getString(
-                                            "servico_nome"),
-                                    rs.getString(
-                                            "profissional_nome"),
-                                    rs.getObject(
-                                            "inicio",
-                                            LocalDateTime.class),
-                                    rs.getObject(
-                                            "fim",
-                                            LocalDateTime.class),
-                                    rs.getString(
-                                            "status")));
+        itens.add(
+                new ItemAgendamentoCliente(
+                        rs.getInt("agendamento_id"),
+                        rs.getInt("servico_id"),
+                        rs.getString("servico_nome"),
+                        rs.getString("profissional_nome"),
+                        rs.getString("profissional_slug"),
+                        rs.getObject(
+                                "inicio",
+                                LocalDateTime.class),
+                        rs.getObject(
+                                "fim",
+                                LocalDateTime.class),
+                        rs.getString("status")));
                 }
             }
         }
@@ -548,6 +578,36 @@ public class AgendamentoRepositorio {
                 c,
                 agendamentoId,
                 agora);
+
+        return agora;
+    }
+    public LocalDateTime remarcar(
+            Connection c,
+            int agendamentoId,
+            LocalDateTime inicio,
+            LocalDateTime fim) throws SQLException {
+
+        LocalDateTime agora = Banco.agora();
+
+        String sql = """
+                UPDATE agendamento
+                SET inicio = ?,
+                    fim = ?,
+                    lembrete_status = ?,
+                    lembrete_registrado_em = NULL,
+                    atualizado_em = ?
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, inicio);
+            ps.setObject(2, fim);
+            ps.setString(3, Agendamento.LEMBRETE_PENDENTE);
+            ps.setObject(4, agora);
+            ps.setInt(5, agendamentoId);
+
+            ps.executeUpdate();
+        }
 
         return agora;
     }

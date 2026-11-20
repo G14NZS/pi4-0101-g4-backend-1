@@ -221,6 +221,11 @@ public final class App {
                         agendamentoRecurso::cancelarAgendamento)
 
                 .rota(
+                        "PATCH",
+                        "/agendamentos/([^/]+)/remarcacao",
+                        agendamentoRecurso::remarcarAgendamento)
+
+                .rota(
                         "POST",
                         "/clientes",
                         clienteRecurso::cadastrar)
