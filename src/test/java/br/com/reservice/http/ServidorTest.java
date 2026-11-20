@@ -25,7 +25,7 @@ class ServidorTest extends TesteIntegracao {
         String cabecalhos = r.headers().firstValue("Access-Control-Allow-Headers").orElse("").toLowerCase();
         assertTrue(cabecalhos.contains("authorization") && cabecalhos.contains("content-type"), cabecalhos);
         String metodos = r.headers().firstValue("Access-Control-Allow-Methods").orElse("");
-        assertTrue(metodos.contains("POST") && metodos.contains("GET"), metodos);
+        assertTrue(metodos.contains("POST") && metodos.contains("GET") && metodos.contains("PATCH"), metodos);
     }
 
     @Test

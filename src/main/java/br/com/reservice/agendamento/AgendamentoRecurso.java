@@ -1,5 +1,6 @@
 package br.com.reservice.agendamento;
 
+import br.com.reservice.agendamento.AgendamentoRepositorio.AgendamentoDoDia;
 import br.com.reservice.banco.Banco;
 import br.com.reservice.cliente.Cliente;
 import br.com.reservice.cliente.ClienteRepositorio;
@@ -14,12 +15,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
- * Operações de agendamento do cliente.
+ * Operações de agendamento.
+ *
+ * CT7: criar agendamento com cliente autenticado.
+ * CT8: listar agendamentos futuros do cliente autenticado.
+ * CT9: cancelar agendamento do cliente autenticado.
+ * CT11: listar agenda do dia do profissional autenticado.
  */
 public class AgendamentoRecurso {
 
@@ -32,6 +39,11 @@ public class AgendamentoRecurso {
             int clienteId,
             String clienteNome,
             String status) {
+    }
+
+    public record AgendamentosDoDia(
+            LocalDate data,
+            List<AgendamentoDoDia> agendamentos) {
     }
 
     public record AgendamentosDoCliente(
@@ -79,6 +91,37 @@ public class AgendamentoRecurso {
         this.tokens = tokens;
     }
 
+    /**
+     * CT11 GET /agendamentos?data=AAAA-MM-DD
+     * Agenda do profissional autenticado.
+     */
+    public Resposta listarAgendamentosDoDia(
+            Requisicao requisicao) throws SQLException {
+
+        int profissionalId =
+                tokens.profissionalAutenticado(requisicao);
+
+        LocalDate data =
+                lerData(
+                        requisicao
+                                .parametroConsulta("data")
+                                .orElse(null));
+
+        try (Connection c = banco.conectar()) {
+
+            return Resposta.ok(
+                    new AgendamentosDoDia(
+                            data,
+                            agendamentos.listarConfirmadosDoDia(
+                                    c,
+                                    profissionalId,
+                                    data)));
+        }
+    }
+
+    /**
+     * CT7 POST /agendamentos
+     */
     public Resposta criarAgendamento(
             Requisicao requisicao) throws SQLException {
 
@@ -88,9 +131,12 @@ public class AgendamentoRecurso {
         JsonNode corpo =
                 requisicao.corpoJson();
 
-        Pedido pedido = new Pedido(
-                lerServicoId(corpo.get("servicoId")),
-                lerInicio(corpo.get("inicio")));
+        Pedido pedido =
+                new Pedido(
+                        lerServicoId(
+                                corpo.get("servicoId")),
+                        lerInicio(
+                                corpo.get("inicio")));
 
         try (Connection c = banco.conectar()) {
 
@@ -101,7 +147,10 @@ public class AgendamentoRecurso {
 
             try {
                 AgendamentoCriado criado =
-                        gravar(c, pedido, clienteId);
+                        gravar(
+                                c,
+                                pedido,
+                                clienteId);
 
                 c.commit();
 
@@ -114,6 +163,10 @@ public class AgendamentoRecurso {
         }
     }
 
+    /**
+     * CT8 GET /agendamentos/do-cliente
+     * Lista somente os agendamentos do cliente autenticado.
+     */
     public Resposta listarDoCliente(
             Requisicao requisicao) throws SQLException {
 
@@ -132,6 +185,10 @@ public class AgendamentoRecurso {
         }
     }
 
+    /**
+     * CT9 PATCH /agendamentos/{id}/cancelamento
+     * Só permite cancelar agendamento pertencente ao cliente autenticado.
+     */
     public Resposta cancelarAgendamento(
             Requisicao requisicao) throws SQLException {
 
@@ -187,7 +244,7 @@ public class AgendamentoRecurso {
                 return Resposta.ok(
                         new AgendamentoCancelado(
                                 agendamentoId,
-                                "cancelado",
+                                Agendamento.CANCELADO,
                                 atualizadoEm));
 
             } catch (SQLException | RuntimeException e) {
@@ -409,7 +466,8 @@ public class AgendamentoRecurso {
             String valor) {
 
         try {
-            int id = Integer.parseInt(valor);
+            int id =
+                    Integer.parseInt(valor);
 
             if (id <= 0) {
                 throw new NumberFormatException();
@@ -418,9 +476,36 @@ public class AgendamentoRecurso {
             return id;
 
         } catch (NumberFormatException e) {
-            throw ErroApi.dadosInvalidos(
-                    "Agendamento inválido.");
+
+            throw new ErroApi(
+                    404,
+                    "AGENDAMENTO_NAO_ENCONTRADO",
+                    "Não encontramos esse agendamento.");
         }
+    }
+
+    private static LocalDate lerData(
+            String valor) {
+
+        if (valor == null) {
+            throw dataInvalida();
+        }
+
+        try {
+            return LocalDate.parse(
+                    valor.trim());
+
+        } catch (DateTimeParseException e) {
+            throw dataInvalida();
+        }
+    }
+
+    private static ErroApi dataInvalida() {
+
+        return new ErroApi(
+                400,
+                "DATA_INVALIDA",
+                "Informe a data no formato AAAA-MM-DD, por exemplo 2026-10-20.");
     }
 
     private static int lerServicoId(
