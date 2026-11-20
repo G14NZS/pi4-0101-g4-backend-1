@@ -32,4 +32,27 @@ public class HorarioRepositorio {
             }
         }
     }
+
+    /**
+     * Apaga a grade do profissional e grava a nova, usando a conexão (e a transação) de quem chama:
+     * ou troca tudo, ou não troca nada (CT4).
+     */
+    public void substituirGrade(Connection c, int profissionalId, List<HorarioAtendimento> faixas) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("DELETE FROM horario_atendimento WHERE profissional_id = ?")) {
+            ps.setInt(1, profissionalId);
+            ps.executeUpdate();
+        }
+        String sql = "INSERT INTO horario_atendimento (profissional_id, dia_semana, hora_inicio, hora_fim)"
+                + " VALUES (?, ?, ?, ?)";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            for (HorarioAtendimento f : faixas) {
+                ps.setInt(1, profissionalId);
+                ps.setString(2, f.diaSemana());
+                ps.setString(3, f.horaInicio());
+                ps.setString(4, f.horaFim());
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
+    }
 }
