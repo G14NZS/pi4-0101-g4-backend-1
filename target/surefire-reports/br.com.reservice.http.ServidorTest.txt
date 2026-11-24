@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: br.com.reservice.http.ServidorTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.467 s -- in br.com.reservice.http.ServidorTest

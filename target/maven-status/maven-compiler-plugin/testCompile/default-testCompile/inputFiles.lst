@@ -1,0 +1,13 @@
+/app/src/test/java/br/com/reservice/TesteIntegracao.java
+/app/src/test/java/br/com/reservice/agendamento/CancelarAgendamentoTest.java
+/app/src/test/java/br/com/reservice/agendamento/CriarAgendamentoTest.java
+/app/src/test/java/br/com/reservice/agendamento/ListarAgendamentosDoClienteTest.java
+/app/src/test/java/br/com/reservice/agendamento/ListarAgendamentosDoDiaTest.java
+/app/src/test/java/br/com/reservice/banco/TabelasTest.java
+/app/src/test/java/br/com/reservice/horario/DefinirHorariosTest.java
+/app/src/test/java/br/com/reservice/http/ServidorTest.java
+/app/src/test/java/br/com/reservice/servico/CadastrarServicoTest.java
+/app/src/test/java/br/com/reservice/servico/ListarServicosTest.java
+/app/src/test/java/br/com/reservice/sessao/AbrirSessaoTest.java
+/app/src/test/java/br/com/reservice/socket/ConcorrenciaTest.java
+/app/src/test/java/br/com/reservice/socket/ServidorSocketTest.java

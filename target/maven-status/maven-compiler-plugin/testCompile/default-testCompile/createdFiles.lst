@@ -1,0 +1,13 @@
+br/com/reservice/agendamento/ListarAgendamentosDoClienteTest.class
+br/com/reservice/agendamento/CriarAgendamentoTest.class
+br/com/reservice/horario/DefinirHorariosTest.class
+br/com/reservice/socket/ConcorrenciaTest.class
+br/com/reservice/servico/ListarServicosTest.class
+br/com/reservice/agendamento/CancelarAgendamentoTest.class
+br/com/reservice/servico/CadastrarServicoTest.class
+br/com/reservice/agendamento/ListarAgendamentosDoDiaTest.class
+br/com/reservice/TesteIntegracao.class
+br/com/reservice/socket/ServidorSocketTest.class
+br/com/reservice/banco/TabelasTest.class
+br/com/reservice/sessao/AbrirSessaoTest.class
+br/com/reservice/http/ServidorTest.class
