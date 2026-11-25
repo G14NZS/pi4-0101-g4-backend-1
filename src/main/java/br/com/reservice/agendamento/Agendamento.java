@@ -19,4 +19,6 @@ public record Agendamento(
     public static final String CONFIRMADO = "confirmado";
     public static final String CANCELADO = "cancelado";
     public static final String LEMBRETE_PENDENTE = "pendente";
+    public static final String LEMBRETE_ENVIADO = "enviado";
+    public static final String LEMBRETE_FALHOU = "falhou";
 }
