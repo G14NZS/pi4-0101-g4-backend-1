@@ -58,6 +58,8 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_FROM: ${TWILIO_FROM:-}
+      # Conta trial do Twilio: só aceita modelo pronto (ex.: sms_appointment_reminders). Vazio = texto do CT19.
+      TWILIO_MODELO_TRIAL: ${TWILIO_MODELO_TRIAL:-}
       INTERVALO_LEMBRETES_SEGUNDOS: ${INTERVALO_LEMBRETES_SEGUNDOS:-900}
     restart: on-failure:3   # a partida falha rápido se o Backend 1 não responde ou recusa a chave
     depends_on:
