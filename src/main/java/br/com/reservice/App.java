@@ -2,6 +2,7 @@ package br.com.reservice;
 
 import br.com.reservice.agendamento.AgendamentoRecurso;
 import br.com.reservice.agendamento.AgendamentoRepositorio;
+import br.com.reservice.agendamento.LembreteSocketRecurso;
 import br.com.reservice.banco.Banco;
 import br.com.reservice.cliente.ClienteRecurso;
 import br.com.reservice.cliente.ClienteRepositorio;
@@ -81,8 +82,21 @@ public final class App {
                         banco,
                         recuperacoes);
 
+        LembreteSocketRecurso lembretes =
+                new LembreteSocketRecurso(
+                        banco,
+                        new AgendamentoRepositorio());
+
         return new ServidorSocket(
                 config.chaveInterna())
+
+                .operacao(
+                        "listarLembretesPendentes",
+                        lembretes::listarLembretesPendentes)
+
+                .operacao(
+                        "registrarLembrete",
+                        lembretes::registrarLembrete)
 
                 .operacao(
                         "buscar_recuperacao_senha",

@@ -66,6 +66,113 @@ public class AgendamentoRepositorio {
             LocalDateTime inicio) {
     }
 
+    /*
+     * CT12 - agendamento confirmado cujo lembrete ainda não foi enviado.
+     */
+    public record LembretePendente(
+            int agendamentoId,
+            String clienteNome,
+            String clienteTelefone,
+            String servicoNome,
+            String profissionalNome,
+            LocalDateTime inicio) {
+    }
+
+    /**
+     * CT12 - agendamentos confirmados, com lembrete pendente, que começam
+     * depois de {@code agora} e até {@code ate} (inclusive).
+     */
+    public List<LembretePendente> listarLembretesPendentes(
+            Connection c,
+            LocalDateTime agora,
+            LocalDateTime ate) throws SQLException {
+
+        String sql = """
+                SELECT
+                    a.id,
+                    c.nome AS cliente_nome,
+                    c.telefone AS cliente_telefone,
+                    s.nome AS servico_nome,
+                    p.nome AS profissional_nome,
+                    a.inicio
+                FROM agendamento a
+                JOIN cliente c ON c.id = a.cliente_id
+                JOIN servico s ON s.id = a.servico_id
+                JOIN profissional p ON p.id = a.profissional_id
+                WHERE a.status = ?
+                  AND a.lembrete_status = ?
+                  AND a.inicio > ?
+                  AND a.inicio <= ?
+                ORDER BY a.inicio, a.id
+                """;
+
+        List<LembretePendente> lembretes = new ArrayList<>();
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, Agendamento.CONFIRMADO);
+            ps.setString(2, Agendamento.LEMBRETE_PENDENTE);
+            ps.setObject(3, agora);
+            ps.setObject(4, ate);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lembretes.add(new LembretePendente(
+                            rs.getInt("id"),
+                            rs.getString("cliente_nome"),
+                            rs.getString("cliente_telefone"),
+                            rs.getString("servico_nome"),
+                            rs.getString("profissional_nome"),
+                            rs.getObject("inicio", LocalDateTime.class)));
+                }
+            }
+        }
+
+        return lembretes;
+    }
+
+    /**
+     * CT13 - situação do lembrete, travando a linha. Vazio se o agendamento não existe.
+     */
+    public Optional<String> travarLembrete(
+            Connection c,
+            int agendamentoId) throws SQLException {
+
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT lembrete_status FROM agendamento WHERE id = ? FOR UPDATE")) {
+
+            ps.setInt(1, agendamentoId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next()
+                        ? Optional.of(rs.getString("lembrete_status"))
+                        : Optional.empty();
+            }
+        }
+    }
+
+    /**
+     * CT13 - grava o resultado do envio do lembrete.
+     */
+    public void registrarLembrete(
+            Connection c,
+            int agendamentoId,
+            String resultado,
+            LocalDateTime registradoEm) throws SQLException {
+
+        try (PreparedStatement ps = c.prepareStatement("""
+                UPDATE agendamento
+                SET lembrete_status = ?,
+                    lembrete_registrado_em = ?
+                WHERE id = ?
+                """)) {
+
+            ps.setString(1, resultado);
+            ps.setObject(2, registradoEm);
+            ps.setInt(3, agendamentoId);
+            ps.executeUpdate();
+        }
+    }
+
     /**
      * Serializa alterações na agenda de um profissional.
      */
